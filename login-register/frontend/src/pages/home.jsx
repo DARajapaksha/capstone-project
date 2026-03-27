@@ -1,225 +1,190 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  LayoutDashboard, ShieldCheck, BookOpen, Activity, 
-  Bell, Settings, LogOut, Edit3, Calendar, 
-  CheckCircle2, Clock, ArrowRight, UserCircle2
+  ShieldCheck, Bell, Settings, LogOut, Edit3, Calendar, 
+  CheckCircle2, Clock, ArrowRight, BookOpen, Activity, LayoutDashboard
 } from 'lucide-react';
 
 const Home = () => {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('Overview');
 
   return (
-    <div className="flex min-h-screen bg-[#F3F6FF] font-sans text-[#1A1A1A]">
+    <div className="min-h-screen bg-[#F3F6FF] font-sans text-[#1A1A1A] antialiased">
       
-      {/* SIDEBAR - Exactly as per Figma Navigation */}
-      <aside className="w-[280px] bg-white border-r border-gray-100 flex flex-col py-10 px-8 fixed h-full z-30">
-        <div className="flex items-center gap-4 mb-16 px-2">
-          <div className="bg-[#5D5FEF] p-3 rounded-[18px] shadow-lg shadow-indigo-100">
-            <ShieldCheck className="text-white w-7 h-7" />
+      {/* TOP BAR - FIXED AS REQUESTED */}
+      <header className="h-18 bg-white px-12 sticky top-0 z-50 flex items-center justify-between border-b border-gray-100">
+        <div className="flex items-center gap-4">
+          <div className="bg-[#5D5FEF] p-2.5 rounded-[15px] shadow-lg shadow-indigo-100">
+            <ShieldCheck className="text-white w-6 h-6" />
           </div>
-          <span className="font-black text-2xl tracking-tight italic">VerifyMe</span>
+          <div className="text-left">
+            <h2 className="font-black text-xl leading-none tracking-tight uppercase">Student Portal</h2>
+            <span className="font-bold text-gray-400 text-[10px] uppercase tracking-[0.2em] mt-1 block">Identity Verification System</span>
+          </div>
         </div>
 
-        <nav className="flex-1 space-y-4">
-          <SidebarLink icon={<LayoutDashboard size={22}/>} label="Overview" active />
-          <SidebarLink icon={<ShieldCheck size={22}/>} label="Verification" />
-          <SidebarLink icon={<BookOpen size={22}/>} label="My Exams" />
-          <SidebarLink icon={<Activity size={22}/>} label="Activity" />
-        </nav>
-      </aside>
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3">
+            <IconButton icon={<Bell size={20} />} notification />
+            <IconButton icon={<Settings size={20} />} />
+          </div>
 
-      {/* MAIN CONTENT AREA */}
-      <div className="flex-1 ml-[280px] flex flex-col min-h-screen">
+          <div className="bg-white p-1.5 pr-6 rounded-[22px] shadow-sm border border-gray-100 flex items-center gap-4">
+            <div className="h-7 w-[1px] bg-gray-200 mx-1"></div>
+            <button onClick={() => navigate('/login')} className="flex items-center gap-2 text-gray-400 hover:text-red-500 transition-all group">
+              <LogOut size={16} />
+              <span className="text-[10px] font-black uppercase">Logout</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-[1600px] mx-auto p-12">
         
-        {/* TOP BAR */}
-        <header className="h-24 flex items-center justify-between px-12 sticky top-0 z-20">
-          <h2 className="text-2xl font-black text-gray-800 tracking-tight">Student Portal</h2>
-          
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-3">
-              <IconButton icon={<Bell size={20} />} notification />
-              <IconButton icon={<Settings size={20} />} />
-            </div>
-
-            {/* PROFILE ACTION BOX */}
-            <div className="bg-white p-2 pr-6 rounded-[24px] shadow-sm border border-white flex items-center gap-4">
-              <div className="w-11 h-11 bg-indigo-50 rounded-[16px] flex items-center justify-center text-[#5D5FEF] font-bold">
-                AJ
-              </div>
-              <div className="text-left min-w-[100px]">
-                <p className="text-sm font-black text-gray-800 leading-none tracking-tight">Alex Johnson</p>
-                <p className="text-[10px] text-gray-400 font-bold uppercase mt-1">Student</p>
-              </div>
-              <div className="h-8 w-[1px] bg-gray-100 mx-1"></div>
-              <button 
-                onClick={() => navigate('/login')}
-                className="flex items-center gap-2 text-gray-400 hover:text-red-500 transition-all p-2"
-              >
-                <LogOut size={18} />
-                <span className="text-xs font-bold uppercase tracking-wider">Logout</span>
-              </button>
-            </div>
-          </div>
-        </header>
-
-        {/* PAGE CONTENT */}
-        <main className="p-12 pt-4 max-w-[1400px]">
-          
-          {/* PROFILE SUMMARY CARD (Purple) */}
-          <section className="bg-[#5D5FEF] rounded-[48px] p-12 text-white relative overflow-hidden shadow-2xl shadow-indigo-200/50 mb-12">
-            <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
-              <div className="flex items-center gap-6">
-                <div className="w-24 h-24 bg-white/20 rounded-[32px] flex items-center justify-center border border-white/30 backdrop-blur-md">
-                   <UserCircle2 size={60} strokeWidth={1} />
-                </div>
-                <div className="text-left">
-                  <h1 className="text-4xl font-black mb-1">Alex Johnson</h1>
-                  <p className="text-indigo-100 font-bold opacity-80">Student ID: STU-2026-001</p>
-                  <div className="flex gap-4 mt-4">
-                    <button className="bg-white text-[#5D5FEF] px-5 py-2 rounded-xl text-sm font-bold flex items-center gap-2">
-                      <Edit3 size={16} /> Edit Profile
-                    </button>
-                    <button className="bg-[#4B4DDB] text-white px-5 py-2 rounded-xl text-sm font-bold border border-white/20">
-                      Enroll in Exam
-                    </button>
+        {/* PROFILE SECTION */}
+        <section className="bg-white rounded-[50px] shadow-sm border border-white p-14 mb-10">
+          <div className="flex flex-col lg:flex-row justify-between items-center gap-12 text-left">
+            <div className="flex items-center gap-10">
+              <div className="w-32 h-32 bg-[#5D5FEF] rounded-[50%] flex items-center justify-center text-white font-black text-5xl shadow-2xl shadow-indigo-100">AJ</div>
+              <div>
+                <h1 className="text-3xl font-black mb-3 tracking-tighter uppercase">Alex Johnson</h1>
+                <p className="text-gray-400  text-lg">Student ID: STU-2026-001</p>
+                <div className="flex gap-4 mt-8">
+                  <div className="grid grid-cols-3 gap-x-16 gap-y-8 border-l-2 border-gray-50 pl-16">
+                    <InfoCol label="Email" val="alex.johnson@university.edu" />
+                    <InfoCol label="NIC Number" val="123456789V" />
+                    <InfoCol label="Enrolled Since" val="Jan 15, 2026" />
                   </div>
+                  <button className="bg-[#5D5FEF] text-white px-8 py-3.5 rounded-2xl text-sm font-black flex items-center gap-2 shadow-lg hover:opacity-90 transition-all">
+                    <Edit3 size={18} /> Edit Profile
+                  </button>
+                  <button className="bg-white bg-[#5D5FEF]text-gray-500 px-8 py-3.5 rounded-2xl text-sm font-black border border-gray-200 hover:bg-gray-50 transition-all">
+                    Enroll in Exam
+                  </button>
                 </div>
               </div>
-              
-              <div className="grid grid-cols-2 gap-x-12 gap-y-4 border-l border-white/20 pl-8">
-                <DetailItem label="Email" value="alex.johnson@university.edu" />
-                <DetailItem label="NIC Number" value="123456789V" />
-                <DetailItem label="Enrolled Since" value="January 15, 2026" />
-                <DetailItem label="Identity Status" value="Verified" status="success" />
-              </div>
             </div>
-          </section>
-
-          {/* STATS ROW */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-            <StatBox label="Enrolled Exams" value="2" sub="1 need verification" color="warning" />
-            <StatBox label="Completed Exams" value="1" sub="Score: 96%" color="success" />
-            <StatBox label="Upcoming" value="MATH-401 Final" sub="Next: Mar 15" color="indigo" />
-          </div>
-
-          {/* TWO COLUMN CONTENT SECTION */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
             
-            {/* UPCOMING EXAMS SECTION */}
-            <div className="space-y-6">
-              <SectionHeader title="Upcoming Exams" sub="Your scheduled examinations" />
-              <ExamCard 
-                title="Advanced Mathematics Final" 
-                code="MATH-401" 
-                date="March 15, 2026" 
-                time="10:00 AM - 12:00 PM"
-                status="Verify Required"
-              />
-              <ExamCard 
-                title="Computer Science Midterm" 
-                code="CS-302" 
-                date="March 20, 2026" 
-                time="2:00 PM - 4:00 PM"
-                status="Verified"
-              />
-            </div>
+          </div>
+        </section>
 
-            {/* RECENT ACTIVITY SECTION */}
-            <div className="space-y-6">
-              <SectionHeader title="Recent Activity" sub="Your latest actions" />
-              <div className="bg-white rounded-[40px] p-8 shadow-sm space-y-8 border border-white">
-                <ActivityItem icon={<ShieldCheck className="text-emerald-500"/>} title="Identity Verified" time="Mar 5, 2026 11:00 AM" />
-                <ActivityItem icon={<CheckCircle2 className="text-indigo-500"/>} title="Enrolled in MATH-401" time="Mar 4, 2026 3:30 PM" />
-                <ActivityItem icon={<Clock className="text-blue-500"/>} title="Completed PHY-201 Exam" time="Feb 28, 2026 11:00 AM" />
-                <ActivityItem icon={<UserCircle2 className="text-gray-400"/>} title="Profile Updated" time="Feb 20, 2026 2:15 PM" />
+        {/* STATS ROW */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
+          <StatCard label="Verification Status" val="Verified" sub="Identity Confirmed" theme="success" isStatus />
+          <StatCard label="Enrolled Exams" val="02" sub="1 need verification" theme="warning" />
+          <StatCard label="Completed Exams" val="01" sub="Score: 96%" theme="success" />
+          <StatCard label="Upcoming Exam" val="MATH-401" sub="Mar 15, 2026" theme="primary" />
+        </div>
+
+        {/* TAB BAR */}
+        <div className="bg-white px-8 py-4 rounded-[30px] flex items-center gap-4 shadow-sm border border-white mb-12">
+          <NavTab label="Overview" icon={<LayoutDashboard size={20}/>} active={activeTab === 'Overview'} onClick={() => setActiveTab('Overview')} />
+          <NavTab label="Verification" icon={<ShieldCheck size={20}/>} active={activeTab === 'Verification'} onClick={() => setActiveTab('Verification')} />
+          <NavTab label="My Exams" icon={<BookOpen size={20}/>} active={activeTab === 'My Exams'} onClick={() => setActiveTab('My Exams')} />
+          <NavTab label="Activity" icon={<Activity size={20}/>} active={activeTab === 'Activity'} onClick={() => setActiveTab('Activity')} />
+        </div>
+
+        {/* BOTTOM CONTENT GRID - MATCHING FIGMA RATIO */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+          
+          {/* UPCOMING EXAMS (Wider) */}
+          <div className="lg:col-span-2">
+            <div className="flex justify-between items-center mb-6 pl-2">
+              <h3 className="text-2xl font-black text-gray-800 tracking-tight uppercase">Upcoming Exams</h3>
+              <button className="text-[#5D5FEF] text-xs font-black uppercase tracking-widest hover:underline">View All</button>
+            </div>
+            <div className="space-y-4">
+              <ExamCard title="Advanced Mathematics Final" code="MATH-401" date="Mar 15, 2026" time="10:00 AM" status="Pending" />
+              <ExamCard title="Computer Science Midterm" code="CS-302" date="Mar 20, 2026" time="02:00 PM" status="Verified" />
+              <ExamCard title="Physical Science Final" code="PHY-201" date="Apr 05, 2026" time="09:00 AM" status="Verified" />
+            </div>
+          </div>
+
+          {/* RECENT ACTIVITY (Narrower - In White Box) */}
+          <div className="flex flex-col h-full">
+            <div className="mb-6 pl-2">
+              <h3 className="text-2xl font-black text-gray-800 tracking-tight uppercase">Recent Activity</h3>
+            </div>
+            <div className="bg-white rounded-[50px] p-10 border border-white shadow-sm flex-grow">
+              <div className="space-y-12">
+                <ActivityItem icon={<ShieldCheck className="text-emerald-500" size={20}/>} title="Identity Verified" time="Mar 5, 11:00 AM" />
+                <ActivityItem icon={<CheckCircle2 className="text-indigo-500" size={20}/>} title="Enrolled MATH-401" time="Mar 4, 03:30 PM" />
+                <ActivityItem icon={<Clock className="text-blue-500" size={20}/>} title="Completed PHY-201" time="Feb 28, 11:00 AM" />
               </div>
             </div>
-
           </div>
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   );
 };
 
-// --- Sub-Components ---
+// --- FIGMA COMPONENT HELPERS ---
 
-const DetailItem = ({ label, value, status }) => (
-  <div className="text-left">
-    <p className="text-[10px] uppercase font-black tracking-widest text-indigo-200 mb-1">{label}</p>
-    <p className={`text-sm font-bold ${status === 'success' ? 'text-emerald-300' : 'text-white'}`}>{value}</p>
-  </div>
-);
-
-const SidebarLink = ({ icon, label, active = false }) => (
-  <div className={`flex items-center gap-5 px-7 py-4.5 rounded-[22px] cursor-pointer transition-all ${
-    active ? 'bg-[#5D5FEF] text-white shadow-xl shadow-indigo-100' : 'text-gray-400 hover:bg-gray-50'
+const NavTab = ({ label, icon, active, onClick }) => (
+  <button onClick={onClick} className={`flex items-center gap-3 px-10 py-3.5 rounded-[22px] font-black transition-all ${
+    active ? 'bg-[#5D5FEF] text-white shadow-lg shadow-indigo-100' : 'text-gray-400 hover:text-gray-600'
   }`}>
-    {icon}
-    <span className="font-bold text-base">{label}</span>
-  </div>
-);
-
-const IconButton = ({ icon, notification }) => (
-  <button className="p-3 bg-white text-gray-400 rounded-2xl shadow-sm border border-white transition-all relative">
-    {icon}
-    {notification && <span className="absolute top-3 right-3.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>}
+    {icon} <span className="text-[12px] uppercase tracking-tighter">{label}</span>
   </button>
 );
 
-const StatBox = ({ label, value, sub, color }) => {
-  const colors = {
-    warning: 'text-amber-500',
-    success: 'text-emerald-500',
-    indigo: 'text-[#5D5FEF]'
-  };
+const StatCard = ({ label, val, sub, theme, isStatus }) => {
+  const colors = { warning: 'text-amber-500', success: 'text-emerald-500', primary: 'text-[#5D5FEF]' };
   return (
-    <div className="bg-white p-10 rounded-[44px] shadow-sm border border-white text-left flex flex-col justify-center min-h-[160px]">
-      <p className="text-gray-400 text-[10px] font-black uppercase tracking-[0.2em] mb-3">{label}</p>
-      <p className={`text-2xl font-black ${colors[color]}`}>{value}</p>
-      <p className="text-gray-400 text-xs font-bold mt-1 opacity-80">{sub}</p>
+    <div className="bg-white p-10 rounded-[45px] border border-white text-left shadow-sm min-h-[190px] flex flex-col justify-center">
+      <p className="text-gray-400 text-[10px] font-black uppercase tracking-[0.2em] mb-4">{label}</p>
+      <p className={`font-black tracking-tighter leading-none ${isStatus ? 'text-3xl' : 'text-5xl'} ${colors[theme]}`}>{val}</p>
+      <p className="text-gray-400 text-[11px] font-bold mt-4 opacity-80 uppercase">{sub}</p>
     </div>
   );
 };
 
-const SectionHeader = ({ title, sub }) => (
-  <div className="text-left pl-2">
-    <h3 className="text-xl font-black text-gray-800">{title}</h3>
-    <p className="text-gray-400 text-sm font-bold">{sub}</p>
-  </div>
-);
-
 const ExamCard = ({ title, code, date, time, status }) => (
-  <div className="bg-white p-8 rounded-[40px] shadow-sm border border-white flex justify-between items-center group hover:shadow-md transition-shadow">
-    <div className="text-left space-y-3">
-      <div className="flex items-center gap-3">
-        <span className="bg-indigo-50 text-[#5D5FEF] px-3 py-1 rounded-lg text-[10px] font-black">{code}</span>
-        <span className={`px-3 py-1 rounded-lg text-[10px] font-black ${status === 'Verified' ? 'bg-emerald-50 text-emerald-500' : 'bg-amber-50 text-amber-500'}`}>{status}</span>
+  <div className="bg-white p-6 rounded-[35px] border border-white flex justify-between items-center text-left hover:shadow-md transition-shadow group">
+    <div className="flex items-center gap-6">
+      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${status === 'Pending' ? 'bg-amber-50' : 'bg-indigo-50'}`}>
+        <BookOpen className={status === 'Pending' ? 'text-amber-500' : 'text-[#5D5FEF]'} size={24} />
       </div>
-      <h4 className="text-lg font-black text-gray-800">{title}</h4>
-      <div className="flex items-center gap-6 text-gray-400 text-sm font-bold">
-        <div className="flex items-center gap-2"><Calendar size={16}/> {date}</div>
-        <div className="flex items-center gap-2"><Clock size={16}/> {time}</div>
+      <div className="space-y-1">
+        <p className="text-[10px] font-black text-[#5D5FEF] uppercase tracking-widest leading-none mb-1">{code}</p>
+        <h4 className="text-lg font-black text-gray-800 leading-tight">{title}</h4>
+        <div className="flex gap-4 text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-1">
+          <span className="flex items-center gap-1.5"><Calendar size={12}/> {date}</span>
+          <span className="flex items-center gap-1.5"><Clock size={12}/> {time}</span>
+        </div>
       </div>
     </div>
-    <button className={`p-4 rounded-2xl transition-all ${status === 'Verified' ? 'bg-indigo-50 text-[#5D5FEF]' : 'bg-[#5D5FEF] text-white shadow-lg shadow-indigo-100'}`}>
-      {status === 'Verified' ? <ArrowRight size={20} /> : <span className="text-xs font-black">Verify Identity</span>}
+    <button className={`p-4 rounded-2xl transition-all ${status === 'Pending' ? 'bg-[#5D5FEF] text-white shadow-lg px-8' : 'bg-gray-50 text-gray-400 group-hover:bg-[#5D5FEF] group-hover:text-white'}`}>
+      {status === 'Pending' ? <span className="text-[10px] font-black uppercase">Verify Now</span> : <ArrowRight size={20} />}
     </button>
   </div>
 );
 
 const ActivityItem = ({ icon, title, time }) => (
-  <div className="flex items-center justify-between">
-    <div className="flex items-center gap-5">
-      <div className="p-3 bg-gray-50 rounded-2xl">{icon}</div>
-      <div className="text-left">
-        <p className="text-base font-black text-gray-800">{title}</p>
-        <p className="text-xs text-gray-400 font-bold">{time}</p>
-      </div>
+  <div className="flex items-center gap-6 text-left group">
+    <div className="p-4 bg-[#F3F6FF] rounded-[22px] group-hover:bg-indigo-50 transition-colors">{icon}</div>
+    <div className="flex-grow">
+      <p className="text-sm font-black text-gray-800 tracking-tight leading-none mb-1.5">{title}</p>
+      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.15em]">{time}</p>
     </div>
-    <ArrowRight size={18} className="text-gray-300" />
+    <ArrowRight size={16} className="text-gray-200" />
   </div>
+);
+
+const InfoCol = ({ label, val }) => (
+  <div>
+    <p className="text-[10px] uppercase font-black tracking-[0.15em] text-gray-400 mb-1">{label}</p>
+    <p className="text-[15px] font-black text-gray-800">{val}</p>
+  </div>
+);
+
+const IconButton = ({ icon, notification }) => (
+  <button className="p-3 bg-[#F3F6FF] text-gray-400 rounded-2xl relative hover:text-[#5D5FEF] transition-all">
+    {icon}
+    {notification && <span className="absolute top-3 right-3.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>}
+  </button>
 );
 
 export default Home;
