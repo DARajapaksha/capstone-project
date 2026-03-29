@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import { auth } from "../firebase/firebase";
+import{ signOut } from "firebase/auth";
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ShieldCheck, Bell, Settings, LogOut, Edit3, Calendar, 
@@ -8,6 +10,12 @@ import {
 const Home = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('Overview');
+
+  const handleLogout = () => {
+    signOut(auth).then(() => {
+      navigate("/login");
+    });
+  };
 
   return (
     <div className="min-h-screen bg-[#F3F6FF] font-sans text-[#1A1A1A] antialiased">
@@ -32,7 +40,7 @@ const Home = () => {
 
           <div className="bg-white p-1.5 pr-6 rounded-[22px] shadow-sm border border-gray-100 flex items-center gap-4">
             <div className="h-7 w-[1px] bg-gray-200 mx-1"></div>
-            <button onClick={() => navigate('/login')} className="flex items-center gap-2 text-gray-400 hover:text-red-500 transition-all group">
+            <button onClick={handleLogout} className="flex items-center gap-2 text-gray-400 hover:text-red-500 transition-all group">
               <LogOut size={16} />
               <span className="text-[10px] font-black uppercase">Logout</span>
             </button>

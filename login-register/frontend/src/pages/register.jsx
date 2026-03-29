@@ -1,9 +1,44 @@
-import React from 'react';
+import { auth } from "../firebase/firebase";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { useState } from "react";
 import { Link, useNavigate } from 'react-router-dom';
 import { Shield, Mail, Lock, KeyRound, Cpu, GraduationCap } from 'lucide-react';
 
 const Register = () => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const navigate = useNavigate();
+
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+
+    if (password !== confirmPassword) {
+    alert("Passwords do not match! Please check again.");
+    return;
+    }
+
+    const cleanEmail = email.trim();
+
+    console.log("Attempting to register with:", `"${cleanEmail}"`);
+
+    if (!cleanEmail) {
+      alert("Please enter an email address");
+      return;
+    }
+
+    try {
+      await createUserWithEmailAndPassword(auth, cleanEmail, password);
+      alert("Account created successfully!");
+      navigate("/login"); // Redirect to login after success
+    } catch (error) {
+    // Show the specific error code to help us debug
+    console.error("Firebase Error Code:", error.code);
+    alert(`Registration Error: ${error.message}`);
+    }
+  };
+
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-[#F3F6FF] p-6 font-sans text-[#1A1A1A]">
@@ -25,12 +60,13 @@ const Register = () => {
               <button className="flex-1 py-3 rounded-xl text-sm font-bold bg-white shadow-sm text-gray-800">Register</button>
             </div>
 
-            <form className="space-y-6 text-left" onSubmit={(e) => { e.preventDefault(); navigate('/home'); }}>
+            <form className="space-y-6 text-left" onSubmit={handleRegister}>
               <div className="space-y-2">
                 <label className="block text-sm font-bold text-gray-700 ml-1">Email Address</label>
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input type="email" placeholder="22cis0325@ms.sab.ac.lk" className="w-full bg-[#F3F6FF] border-none rounded-xl py-4 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required />
+                  <input type="email" placeholder="example@gmail.com" value={email} onChange ={(e) => setEmail(e.target.value)}
+                  className="w-full bg-[#F3F6FF] border-none rounded-xl py-4 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required />
                 </div>
               </div>
 
@@ -38,7 +74,8 @@ const Register = () => {
                 <label className="block text-sm font-bold text-gray-700 ml-1">Password</label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input type="password" placeholder="••••••••" className="w-full bg-[#F3F6FF] border-none rounded-xl py-4 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required />
+                  <input type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-[#F3F6FF] border-none rounded-xl py-4 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required />
                 </div>
               </div>
 
@@ -46,7 +83,8 @@ const Register = () => {
                 <label className="block text-sm font-bold text-gray-700 ml-1">Confirm Password</label>
                 <div className="relative">
                   <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input type="password" placeholder="••••••••" className="w-full bg-[#F3F6FF] border-none rounded-xl py-4 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required />
+                  <input type="password" placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full bg-[#F3F6FF] border-none rounded-xl py-4 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required />
                 </div>
               </div>
 
