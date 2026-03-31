@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, Upload, Camera as CameraIcon, Eye, Brain, ShieldCheck, ArrowRight, Check, CheckCircle, RefreshCw, XCircle, Clock, Copy, FileText, Home, AlertCircle } from 'lucide-react';
 import packageInfo from '../../package.json';
 
+
 export default function VerificationPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedImage, setSelectedImage] = useState(null);

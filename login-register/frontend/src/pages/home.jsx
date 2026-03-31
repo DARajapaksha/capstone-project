@@ -5,6 +5,9 @@ import {
   CheckCircle2, Clock, ArrowRight, BookOpen, Activity, LayoutDashboard
 } from 'lucide-react';
 
+// 1. IMPORT YOUR NEW COMPONENT HERE
+import VerificationTab from '../components/VerificationTab';
+
 const Home = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('Overview');
@@ -59,7 +62,7 @@ const Home = () => {
                   <button className="bg-[#5D5FEF] text-white px-8 py-3.5 rounded-2xl text-sm font-black flex items-center gap-2 shadow-lg hover:opacity-90 transition-all">
                     <Edit3 size={18} /> Edit Profile
                   </button>
-                  <button className="bg-white bg-[#5D5FEF]text-gray-500 px-8 py-3.5 rounded-2xl text-sm font-black border border-gray-200 hover:bg-gray-50 transition-all">
+                  <button className="bg-white text-[#5D5FEF] px-8 py-3.5 rounded-2xl text-sm font-black border border-gray-200 hover:bg-gray-50 transition-all">
                     Enroll in Exam
                   </button>
                 </div>
@@ -85,36 +88,43 @@ const Home = () => {
           <NavTab label="Activity" icon={<Activity size={20}/>} active={activeTab === 'Activity'} onClick={() => setActiveTab('Activity')} />
         </div>
 
-        {/* BOTTOM CONTENT GRID - MATCHING FIGMA RATIO */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-          
-          {/* UPCOMING EXAMS (Wider) */}
-          <div className="lg:col-span-2">
-            <div className="flex justify-between items-center mb-6 pl-2">
-              <h3 className="text-2xl font-black text-gray-800 tracking-tight uppercase">Upcoming Exams</h3>
-              <button className="text-[#5D5FEF] text-xs font-black uppercase tracking-widest hover:underline">View All</button>
+        {/* 2. DYNAMIC CONTENT AREA BASED ON TAB */}
+        {activeTab === 'Overview' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+            {/* UPCOMING EXAMS (Wider) */}
+            <div className="lg:col-span-2">
+              <div className="flex justify-between items-center mb-6 pl-2">
+                <h3 className="text-2xl font-black text-gray-800 tracking-tight uppercase">Upcoming Exams</h3>
+                <button className="text-[#5D5FEF] text-xs font-black uppercase tracking-widest hover:underline">View All</button>
+              </div>
+              <div className="space-y-4">
+                <ExamCard title="Advanced Mathematics Final" code="MATH-401" date="Mar 15, 2026" time="10:00 AM" status="Pending" />
+                <ExamCard title="Computer Science Midterm" code="CS-302" date="Mar 20, 2026" time="02:00 PM" status="Verified" />
+                <ExamCard title="Physical Science Final" code="PHY-201" date="Apr 05, 2026" time="09:00 AM" status="Verified" />
+              </div>
             </div>
-            <div className="space-y-4">
-              <ExamCard title="Advanced Mathematics Final" code="MATH-401" date="Mar 15, 2026" time="10:00 AM" status="Pending" />
-              <ExamCard title="Computer Science Midterm" code="CS-302" date="Mar 20, 2026" time="02:00 PM" status="Verified" />
-              <ExamCard title="Physical Science Final" code="PHY-201" date="Apr 05, 2026" time="09:00 AM" status="Verified" />
-            </div>
-          </div>
 
-          {/* RECENT ACTIVITY (Narrower - In White Box) */}
-          <div className="flex flex-col h-full">
-            <div className="mb-6 pl-2">
-              <h3 className="text-2xl font-black text-gray-800 tracking-tight uppercase">Recent Activity</h3>
-            </div>
-            <div className="bg-white rounded-[50px] p-10 border border-white shadow-sm flex-grow">
-              <div className="space-y-12">
-                <ActivityItem icon={<ShieldCheck className="text-emerald-500" size={20}/>} title="Identity Verified" time="Mar 5, 11:00 AM" />
-                <ActivityItem icon={<CheckCircle2 className="text-indigo-500" size={20}/>} title="Enrolled MATH-401" time="Mar 4, 03:30 PM" />
-                <ActivityItem icon={<Clock className="text-blue-500" size={20}/>} title="Completed PHY-201" time="Feb 28, 11:00 AM" />
+            {/* RECENT ACTIVITY (Narrower - In White Box) */}
+            <div className="flex flex-col h-full">
+              <div className="mb-6 pl-2">
+                <h3 className="text-2xl font-black text-gray-800 tracking-tight uppercase">Recent Activity</h3>
+              </div>
+              <div className="bg-white rounded-[50px] p-10 border border-white shadow-sm flex-grow">
+                <div className="space-y-12">
+                  <ActivityItem icon={<ShieldCheck className="text-emerald-500" size={20}/>} title="Identity Verified" time="Mar 5, 11:00 AM" />
+                  <ActivityItem icon={<CheckCircle2 className="text-indigo-500" size={20}/>} title="Enrolled MATH-401" time="Mar 4, 03:30 PM" />
+                  <ActivityItem icon={<Clock className="text-blue-500" size={20}/>} title="Completed PHY-201" time="Feb 28, 11:00 AM" />
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
+
+        {/* 3. SHOW THE VERIFICATION COMPONENT WHEN TAB IS ACTIVE */}
+        {activeTab === 'Verification' && (
+          <VerificationTab />
+        )}
+
       </main>
     </div>
   );
@@ -141,26 +151,31 @@ const StatCard = ({ label, val, sub, theme, isStatus }) => {
   );
 };
 
-const ExamCard = ({ title, code, date, time, status }) => (
-  <div className="bg-white p-6 rounded-[35px] border border-white flex justify-between items-center text-left hover:shadow-md transition-shadow group">
-    <div className="flex items-center gap-6">
-      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${status === 'Pending' ? 'bg-amber-50' : 'bg-indigo-50'}`}>
-        <BookOpen className={status === 'Pending' ? 'text-amber-500' : 'text-[#5D5FEF]'} size={24} />
-      </div>
-      <div className="space-y-1">
-        <p className="text-[10px] font-black text-[#5D5FEF] uppercase tracking-widest leading-none mb-1">{code}</p>
-        <h4 className="text-lg font-black text-gray-800 leading-tight">{title}</h4>
-        <div className="flex gap-4 text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-1">
-          <span className="flex items-center gap-1.5"><Calendar size={12}/> {date}</span>
-          <span className="flex items-center gap-1.5"><Clock size={12}/> {time}</span>
+const ExamCard = ({ title, code, date, time, status }) => {
+  const navigate = useNavigate();
+  return (
+    <div className="bg-white p-6 rounded-[35px] border border-white flex justify-between items-center text-left hover:shadow-md transition-shadow group">
+      <div className="flex items-center gap-6">
+        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${status === 'Pending' ? 'bg-amber-50' : 'bg-indigo-50'}`}>
+          <BookOpen className={status === 'Pending' ? 'text-amber-500' : 'text-[#5D5FEF]'} size={24} />
+        </div>
+        <div className="space-y-1">
+          <p className="text-[10px] font-black text-[#5D5FEF] uppercase tracking-widest leading-none mb-1">{code}</p>
+          <h4 className="text-lg font-black text-gray-800 leading-tight">{title}</h4>
+          <div className="flex gap-4 text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-1">
+            <span className="flex items-center gap-1.5"><Calendar size={12}/> {date}</span>
+            <span className="flex items-center gap-1.5"><Clock size={12}/> {time}</span>
+          </div>
         </div>
       </div>
+      <button 
+        onClick={() => status === 'Pending' && navigate('/verification')}
+        className={`p-4 rounded-2xl transition-all ${status === 'Pending' ? 'bg-[#5D5FEF] text-white shadow-lg px-8 hover:bg-[#4b4ddb]' : 'bg-gray-50 text-gray-400 group-hover:bg-[#5D5FEF] group-hover:text-white'}`}>
+        {status === 'Pending' ? <span className="text-[10px] font-black uppercase">Verify Now</span> : <ArrowRight size={20} />}
+      </button>
     </div>
-    <button className={`p-4 rounded-2xl transition-all ${status === 'Pending' ? 'bg-[#5D5FEF] text-white shadow-lg px-8' : 'bg-gray-50 text-gray-400 group-hover:bg-[#5D5FEF] group-hover:text-white'}`}>
-      {status === 'Pending' ? <span className="text-[10px] font-black uppercase">Verify Now</span> : <ArrowRight size={20} />}
-    </button>
-  </div>
-);
+  );
+};
 
 const ActivityItem = ({ icon, title, time }) => (
   <div className="flex items-center gap-6 text-left group">

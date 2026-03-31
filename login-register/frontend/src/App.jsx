@@ -7,6 +7,7 @@ import Register from './pages/register';
 import Home from './pages/home';
 import VerificationPage from './pages/VerificationPage';
 
+
 function App() {
   return (
     <Router>
@@ -27,6 +28,8 @@ function App() {
 
           {/* 5. Fallback: if URL is wrong, go back to login */}
           <Route path="*" element={<Navigate to="/login" />} />
+
+          
         </Routes>
       </div>
     </Router>
