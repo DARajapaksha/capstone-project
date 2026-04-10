@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { Calendar, CheckCircle, Clock, Award, User, Mail, CreditCard, FileText, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { Calendar, CheckCircle, Clock, Award, User, Mail, CreditCard, FileText, ShieldCheck, ShieldAlert, Edit2, Plus, Zap } from 'lucide-react';
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
 
   const tabs = [
     { id: 'overview', label: 'Overview' },
-    { id: 'available', label: 'Available Exams' },
+    { id: 'available', label: 'Verification' },
     { id: 'my-exams', label: 'My Exams' },
     { id: 'activity', label: 'Activity' }
   ];
@@ -96,28 +96,14 @@ const Dashboard = () => {
         );
       case 'available':
         return (
-          <div className="bg-white p-6 rounded-xl shadow-sm">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Available Exams</h3>
-            <div className="space-y-3">
-              {upcomingExams.map((exam, index) => (
-                <div key={index} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                  <div>
-                    <p className="font-medium text-gray-900">{exam.title}</p>
-                    <p className="text-sm text-gray-500">{exam.code} • {exam.date} at {exam.time}</p>
-                  </div>
-                  {exam.status === 'Verify Required' ? (
-                    <button className={`px-4 py-2 text-white rounded-lg font-medium hover:opacity-90 flex items-center gap-2 ${exam.actionColor}`}>
-                      <exam.actionIcon size={16} />
-                      Verify Identity
-                    </button>
-                  ) : (
-                    <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-white font-medium ${exam.actionColor}`}>
-                      <exam.actionIcon size={16} />
-                      Verified
-                    </div>
-                  )}
-                </div>
-              ))}
+          <div className="bg-white p-6 rounded-xl shadow-sm min-h-[400px] flex items-center justify-center">
+            <div className="flex flex-col items-center gap-4 text-center">
+              <div className="p-4 bg-gray-50 rounded-full">
+                <Zap size={32} className="text-gray-400" />
+              </div>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 max-w-sm">
+                <p className="text-gray-500 font-medium text-sm">Verification modules are being updated by the team.</p>
+              </div>
             </div>
           </div>
         );
@@ -169,13 +155,25 @@ const Dashboard = () => {
     <div className="space-y-6">
       <div className="space-y-6">
         <div className="bg-white p-6 rounded-xl shadow-sm">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center">
-              <User size={32} className="text-purple-600" />
+          <div className="flex items-center justify-between gap-4 mb-6">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center">
+                <User size={32} className="text-purple-600" />
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900">John Doe</h3>
+                <p className="text-sm text-gray-500">Student ID: 12345678</p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-xl font-semibold text-gray-900">John Doe</h3>
-              <p className="text-sm text-gray-500">Student ID: 12345678</p>
+            <div className="flex items-center gap-2">
+              <button className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg font-medium hover:bg-slate-200 transition">
+                <Edit2 size={16} />
+                Edit Profile
+              </button>
+              <button className="flex items-center gap-2 px-4 py-2 bg-[#5B47FB] text-white rounded-lg font-medium hover:opacity-90 transition">
+                <Plus size={16} />
+                Enroll in Exam
+              </button>
             </div>
           </div>
 
