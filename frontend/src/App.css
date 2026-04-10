@@ -40,3 +40,31 @@
 .read-the-docs {
   color: #888;
 }
+
+.student-layout-inner {
+  min-height: calc(100vh - 128px);
+}
+
+.mobile-nav {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .student-layout-inner {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+
+  .student-sidebar {
+    display: none;
+  }
+
+  .mobile-nav {
+    display: flex;
+  }
+
+  .student-header {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+}
