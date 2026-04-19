@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { Calendar, CheckCircle, Clock, Award, User, Mail, CreditCard, FileText, ShieldCheck, ShieldAlert, Edit2, Plus, Zap } from 'lucide-react';
+import AvailableExams from './AvailableExams';
+import MyExamsTab from './MyExamsTab';
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
+  const [showAvailableExams, setShowAvailableExams] = useState(false);
 
   const tabs = [
     { id: 'overview', label: 'Overview' },
@@ -108,27 +111,7 @@ const Dashboard = () => {
           </div>
         );
       case 'my-exams':
-        return (
-          <div className="bg-white p-6 rounded-xl shadow-sm">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">My Exams</h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                <div>
-                  <p className="font-medium text-gray-900">Advanced Mathematics Final</p>
-                  <p className="text-sm text-gray-500">MATH-401 • Completed - Score: 92%</p>
-                </div>
-                <CheckCircle size={20} className="text-green-600" />
-              </div>
-              <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                <div>
-                  <p className="font-medium text-gray-900">Computer Science Midterm</p>
-                  <p className="text-sm text-gray-500">CS-302 • Completed - Score: 88%</p>
-                </div>
-                <CheckCircle size={20} className="text-green-600" />
-              </div>
-            </div>
-          </div>
-        );
+        return <MyExamsTab />;
       case 'activity':
         return (
           <div className="bg-white p-6 rounded-xl shadow-sm">
@@ -152,8 +135,11 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-6">
+    <>
+      {showAvailableExams ? (
+        <AvailableExams onBack={() => setShowAvailableExams(false)} />
+      ) : (
+        <div className="space-y-6">
         <div className="bg-white p-6 rounded-xl shadow-sm">
           <div className="flex items-center justify-between gap-4 mb-6">
             <div className="flex items-center gap-4">
@@ -170,7 +156,9 @@ const Dashboard = () => {
                 <Edit2 size={16} />
                 Edit Profile
               </button>
-              <button className="flex items-center gap-2 px-4 py-2 bg-[#5B47FB] text-white rounded-lg font-medium hover:opacity-90 transition">
+              <button 
+                onClick={() => setShowAvailableExams(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-[#5B47FB] text-white rounded-lg font-medium hover:opacity-90 transition">
                 <Plus size={16} />
                 Enroll in Exam
               </button>
@@ -223,22 +211,23 @@ const Dashboard = () => {
             </div>
           ))}
         </div>
-      </div>
 
-      <nav className="flex gap-6 border-b border-gray-200 pb-4">
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`text-sm font-medium transition ${activeTab === tab.id ? 'text-purple-600 border-b-2 border-purple-600 pb-2' : 'text-gray-500 hover:text-gray-700'}`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </nav>
+        <nav className="flex gap-6 border-b border-gray-200 pb-4">
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`text-sm font-medium transition ${activeTab === tab.id ? 'text-purple-600 border-b-2 border-purple-600 pb-2' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
 
-      {renderContent()}
-    </div>
+        {renderContent()}
+        </div>
+      )}
+    </>
   );
 };
 

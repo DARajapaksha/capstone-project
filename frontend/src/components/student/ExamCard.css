@@ -1,0 +1,151 @@
+.exam-card {
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: all 0.3s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+@media (max-width: 640px) {
+  .exam-card {
+    padding: 16px;
+    gap: 10px;
+  }
+}
+
+.exam-card:hover {
+  border-color: #d1d5db;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+.exam-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+@media (max-width: 640px) {
+  .exam-card-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+
+.exam-code {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  background-color: #f3f4f6;
+  padding: 4px 12px;
+  border-radius: 6px;
+}
+
+.exam-badge {
+  background: linear-gradient(135deg, #ff6b9d 0%, #ff4d7d 100%);
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 20px;
+  text-transform: uppercase;
+}
+
+.exam-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+  line-height: 1.4;
+}
+
+@media (max-width: 640px) {
+  .exam-title {
+    font-size: 15px;
+  }
+}
+
+.exam-description {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0;
+  line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .exam-description {
+    font-size: 12px;
+  }
+}
+
+.exam-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #4b5563;
+}
+
+@media (max-width: 640px) {
+  .detail-item {
+    font-size: 12px;
+  }
+}
+
+.detail-item svg {
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+.detail-item span {
+  line-height: 1.4;
+}
+
+.enroll-button {
+  background: linear-gradient(135deg, #c084fc 0%, #a855f7 100%);
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 8px;
+}
+
+@media (max-width: 640px) {
+  .enroll-button {
+    padding: 9px 14px;
+    font-size: 13px;
+  }
+}
+
+.enroll-button:hover {
+  background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%);
+  transform: scale(1.02);
+}
+
+.enroll-button:active {
+  transform: scale(0.98);
+}
+
+.verification-text {
+  font-size: 12px;
+  color: #9ca3af;
+  margin: 0;
+  text-align: center;
+  margin-top: 4px;
+}
