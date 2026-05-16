@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const register = async (req, res) => {
   try {
     const { email, password, confirmPassword } = req.body;
+    console.log('Incoming register data:', { email, password, confirmPassword });
 
     if (!email || !password || !confirmPassword) {
       return res.status(400).json({ error: 'Email, password, and confirm password are required' });
@@ -20,6 +21,17 @@ const register = async (req, res) => {
       password,
     });
 
+    // Hash password for Realtime Database
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Save user to Realtime Database under the "Users" node
+    const db = admin.database();
+    await db.ref(`Users/${userRecord.uid}`).set({
+      email: userRecord.email,
+      password: hashedPassword,
+      createdAt: admin.database.ServerValue.TIMESTAMP
+    });
     res.status(201).json({
       message: 'User registered successfully',
       user: {
@@ -36,6 +48,7 @@ const register = async (req, res) => {
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
+    console.log('Incoming login data:', { email, password });
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });

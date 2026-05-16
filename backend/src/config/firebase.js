@@ -8,7 +8,8 @@ const serviceAccount = require(serviceAccountPath);
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${serviceAccount.project_id}.appspot.com`
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${serviceAccount.project_id}.appspot.com`,
+  databaseURL: process.env.FIREBASE_DATABASE_URL || "https://identity-verification-sy-dd573-default-rtdb.asia-southeast1.firebasedatabase.app"
 });
 
 module.exports = admin;

@@ -8,6 +8,13 @@ import Home from './pages/home';
 import VerificationPage from './pages/VerificationPage';
 
 function App() {
+
+  const ProtectedRoute = ({ children }) => {
+    const token = localStorage.getItem('token');
+    // If no token exists, force them back to the login screen
+    return token ? children : <Navigate to="/login" />;
+  };
+
   return (
     <Router>
       <div className="min-h-screen bg-[#F3F6FF]">
@@ -20,8 +27,12 @@ function App() {
           <Route path="/register" element={<Register />} />
 
           {/* 3. Main Portal Routes */}
-          <Route path="/home" element={<Home />} />
-          
+          <Route path="/home" element={
+            <ProtectedRoute>
+              <Home />
+            </ProtectedRoute>
+          } />
+
           {/* 4. Keep your existing Verification Page but give it a route */}
           <Route path="/verification" element={<VerificationPage />} />
 
