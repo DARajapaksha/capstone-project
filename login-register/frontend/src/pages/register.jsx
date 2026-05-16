@@ -1,5 +1,3 @@
-import { auth } from "../firebase/firebase";
-import { createUserWithEmailAndPassword } from "firebase/auth";
 import { useState } from "react";
 import { Link, useNavigate } from 'react-router-dom';
 import { Shield, Mail, Lock, KeyRound, Cpu, GraduationCap } from 'lucide-react';
@@ -15,8 +13,8 @@ const Register = () => {
     e.preventDefault();
 
     if (password !== confirmPassword) {
-    alert("Passwords do not match! Please check again.");
-    return;
+      alert("Passwords do not match! Please check again.");
+      return;
     }
 
     const cleanEmail = email.trim();
@@ -29,13 +27,32 @@ const Register = () => {
     }
 
     try {
-      await createUserWithEmailAndPassword(auth, cleanEmail, password);
-      alert("Account created successfully!");
-      navigate("/login"); // Redirect to login after success
+      const response = await fetch("http://localhost:3000/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: cleanEmail,
+          password,
+          confirmPassword,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert("Account created successfully!");
+        setEmail("");
+        setPassword("");
+        setConfirmPassword("");
+        navigate("/login"); // Redirect to login after success
+      } else {
+        alert(`Registration Error: ${data.error || "Something went wrong"}`);
+      }
     } catch (error) {
-    // Show the specific error code to help us debug
-    console.error("Firebase Error Code:", error.code);
-    alert(`Registration Error: ${error.message}`);
+      console.error("Registration Error:", error);
+      alert(`Registration Error: ${error.message}`);
     }
   };
 
@@ -43,7 +60,7 @@ const Register = () => {
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-[#F3F6FF] p-6 font-sans text-[#1A1A1A]">
       <div className="max-w-6xl w-full flex flex-col lg:flex-row items-center justify-between gap-12">
-        
+
         {/* LEFT SIDE: Exact same size as Login */}
         <div className="flex-1 space-y-10 max-w-xl hidden lg:block text-left">
           <BrandSection />
@@ -60,13 +77,13 @@ const Register = () => {
               <button className="flex-1 py-3 rounded-xl text-sm font-bold bg-white shadow-sm text-gray-800">Register</button>
             </div>
 
-            <form className="space-y-6 text-left" onSubmit={handleRegister}>
+            <form className="space-y-6 text-left" onSubmit={handleRegister} autoComplete="off">
               <div className="space-y-2">
                 <label className="block text-sm font-bold text-gray-700 ml-1">Email Address</label>
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input type="email" placeholder="example@gmail.com" value={email} onChange ={(e) => setEmail(e.target.value)}
-                  className="w-full bg-[#F3F6FF] border-none rounded-xl py-4 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required />
+                  <input type="email" placeholder="example@gmail.com" value={email} onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-[#F3F6FF] border-none rounded-xl py-4 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required autoComplete="off" />
                 </div>
               </div>
 
@@ -74,8 +91,8 @@ const Register = () => {
                 <label className="block text-sm font-bold text-gray-700 ml-1">Password</label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-[#F3F6FF] border-none rounded-xl py-4 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required />
+                  <input type="password" placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-[#F3F6FF] border-none rounded-xl py-4 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required autoComplete="new-password" />
                 </div>
               </div>
 
@@ -83,8 +100,8 @@ const Register = () => {
                 <label className="block text-sm font-bold text-gray-700 ml-1">Confirm Password</label>
                 <div className="relative">
                   <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input type="password" placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full bg-[#F3F6FF] border-none rounded-xl py-4 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required />
+                  <input type="password" placeholder="Enter your password again" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full bg-[#F3F6FF] border-none rounded-xl py-4 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required autoComplete="new-password" />
                 </div>
               </div>
 
@@ -111,7 +128,7 @@ const BrandSection = () => (
         <p className="text-gray-400 font-medium text-left">Blockchain-Enhanced AI Security</p>
       </div>
     </div>
-    
+
     <div className="space-y-8">
       {/* 1. AI Feature */}
       <div className="flex gap-5">
