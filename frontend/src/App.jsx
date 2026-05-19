@@ -16,6 +16,9 @@ import StudentLayout from './layouts/StudentLayout';
 import Dashboard from './pages/student/Dashboard';
 import AvailableExams from './pages/student/AvailableExams';
 import MyExamsTab from './pages/student/MyExamsTab';
+import ActivityPage from './pages/student/ActivityPage';
+import ProfilePage from './pages/student/ProfilePage';
+
 
 function App() {
   return (
@@ -39,7 +42,8 @@ function App() {
           <Route index element={<Dashboard />} />
           <Route path="available" element={<AvailableExams />} />
           <Route path="my-exams" element={<MyExamsTab />} />
-          <Route path="activity" element={<div>Activity Page</div>} />
+          <Route path="activity" element={<ActivityPage />} />
+          <Route path="profile" element={<ProfilePage />} />
         </Route>
 
         {/* Catch-all fallback */}
