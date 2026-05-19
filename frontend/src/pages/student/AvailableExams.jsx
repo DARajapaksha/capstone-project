@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Search, ArrowLeft, User } from 'lucide-react';
+
 import ExamCard from '../../components/student/ExamCard';
 import './AvailableExams.css';
 
 const AvailableExams = ({ onBack }) => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
+
 
   // Mock exam data - will be replaced with Firebase later
   const [exams] = useState([
@@ -108,7 +112,7 @@ const AvailableExams = ({ onBack }) => {
           </div>
         </div>
 
-        <button className="profile-button">
+        <button className="profile-button" onClick={() => navigate('/student/profile')}>
           <User size={18} />
           <span>My Profile</span>
         </button>
