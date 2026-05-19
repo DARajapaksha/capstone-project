@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useProfile } from '../../contexts/ProfileContext';
 
 
-import { Calendar, CheckCircle, Clock, Award, User, Mail, CreditCard, FileText, ShieldCheck, ShieldAlert, Edit2, Plus, Zap } from 'lucide-react';
+import { Calendar, CheckCircle, Clock, Award, User, Mail, FileText, ShieldCheck, ShieldAlert, Edit2, Plus, BookOpen } from 'lucide-react';
 import AvailableExams from './AvailableExams';
 import MyExamsTab from './MyExamsTab';
+import VerificationTab from './VerificationTab';
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -21,12 +22,6 @@ const Dashboard = () => {
     { id: 'activity', label: 'Activity' }
   ];
 
-  const stats = [
-    { icon: Calendar, label: 'Total Exams', value: '12', color: 'text-blue-600', borderColor: 'border-l-green-500' },
-    { icon: CheckCircle, label: 'Completed', value: '8', color: 'text-green-600', borderColor: 'border-l-purple-500' },
-    { icon: Clock, label: 'Pending', value: '4', color: 'text-orange-600', borderColor: 'border-l-orange-500' },
-    { icon: Award, label: 'Average Score', value: '85%', color: 'text-purple-600', borderColor: 'border-l-blue-500' }
-  ];
 
   const upcomingExams = [
     { title: 'Advanced Mathematics Final', code: 'MATH-401', time: '10:00 AM - 12:00 PM', date: 'March 15, 2026', status: 'Verify Required', statusColor: 'bg-[#F0B100] text-white', borderColor: 'border-[#FFDF20]', actionColor: 'bg-[#5B47FB]', actionIcon: ShieldAlert, statusIcon: ShieldAlert },
@@ -108,18 +103,7 @@ const Dashboard = () => {
           </div>
         );
       case 'available':
-        return (
-          <div className="bg-white p-6 rounded-xl shadow-sm min-h-[400px] flex items-center justify-center">
-            <div className="flex flex-col items-center gap-4 text-center">
-              <div className="p-4 bg-gray-50 rounded-full">
-                <Zap size={32} className="text-gray-400" />
-              </div>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 max-w-sm">
-                <p className="text-gray-500 font-medium text-sm">Verification modules are being updated by the team.</p>
-              </div>
-            </div>
-          </div>
-        );
+        return <VerificationTab />;
       case 'my-exams':
         return <MyExamsTab />;
       case 'activity':
@@ -212,32 +196,67 @@ const Dashboard = () => {
           </div>
         </div>
 
+        {/* Stats Cards Row */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {stats.map((stat, index) => (
-            <div key={index} className={`bg-white p-4 rounded-xl shadow-sm border-l-4 ${stat.borderColor}`}>
-              <div className="flex items-center gap-3">
-                <stat.icon size={20} className={stat.color} />
-                <div>
-                  <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-                  <p className="text-sm text-gray-500">{stat.label}</p>
-                </div>
-              </div>
+          {/* Card 1: Verification Status */}
+          <div className="bg-white p-5 rounded-xl border-2 border-[#00e060] shadow-sm flex flex-col justify-between">
+            <div>
+              <p className="text-sm font-medium text-slate-500 mb-3">Verification Status</p>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#00e060] text-white">
+                <ShieldCheck size={14} /> Verified
+              </span>
             </div>
-          ))}
+            <p className="text-xs font-medium text-slate-500 mt-6">Score: 96%</p>
+          </div>
+
+          {/* Card 2: Enrolled Exams */}
+          <div className="bg-white p-5 rounded-xl border-2 border-blue-400 shadow-sm flex flex-col justify-between">
+            <div className="flex justify-between items-start">
+              <p className="text-sm font-medium text-slate-500">Enrolled Exams</p>
+              <BookOpen size={18} className="text-blue-500" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-slate-900 mt-2">2</p>
+              <p className="text-xs font-medium text-slate-500 mt-4">1 need verification</p>
+            </div>
+          </div>
+
+          {/* Card 3: Completed Exams */}
+          <div className="bg-white p-5 rounded-xl border-2 border-[#b87cff] shadow-sm flex flex-col justify-between">
+            <div className="flex justify-between items-start">
+              <p className="text-sm font-medium text-slate-500">Completed Exams</p>
+              <Award size={18} className="text-[#b87cff]" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-slate-900 mt-2">1</p>
+              <p className="text-xs font-medium text-slate-500 mt-4">Avg. Score: 92%</p>
+            </div>
+          </div>
+
+          {/* Card 4: Upcoming */}
+          <div className="bg-white p-5 rounded-xl border-2 border-[#ff8c00] shadow-sm flex flex-col justify-between">
+            <div className="flex justify-between items-start">
+              <p className="text-sm font-medium text-slate-500">Upcoming</p>
+              <Clock size={18} className="text-[#ff8c00]" />
+            </div>
+            <div>
+              <p className="text-lg font-bold text-slate-900 mt-2">Next: Mar 15</p>
+              <p className="text-xs font-medium text-slate-500 mt-4">MATH-401 Final</p>
+            </div>
+          </div>
         </div>
 
-        <nav className="flex gap-6 border-b border-gray-200 pb-4">
+        {/* Tab Navigation */}
+        <nav className="flex gap-2 pb-2">
           {tabs.map(tab => (
             <button
               key={tab.id}
-              onClick={() => {
-                if (tab.id === 'available') {
-                  navigate('/verification');
-                } else {
-                  setActiveTab(tab.id);
-                }
-              }}
-              className={`text-sm font-medium transition ${activeTab === tab.id ? 'text-purple-600 border-b-2 border-purple-600 pb-2' : 'text-gray-500 hover:text-gray-700'}`}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-5 py-2 rounded-full text-sm font-bold transition-colors ${
+                activeTab === tab.id 
+                  ? 'bg-slate-200 text-slate-900' 
+                  : 'bg-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100'
+              }`}
             >
               {tab.label}
             </button>
