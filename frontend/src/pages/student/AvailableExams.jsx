@@ -21,7 +21,7 @@ const AvailableExams = ({ onBack }) => {
       time: '10:00 AM',
       duration: 3,
       proctoring: 'Online Proctored',
-      status: 'Full',
+      status: 'Available',
     },
     {
       id: 2,
@@ -32,7 +32,7 @@ const AvailableExams = ({ onBack }) => {
       time: '2:00 PM',
       duration: 2.5,
       proctoring: 'Online Proctored',
-      status: 'Full',
+      status: 'Available',
     },
     {
       id: 3,
@@ -43,7 +43,7 @@ const AvailableExams = ({ onBack }) => {
       time: '9:00 AM',
       duration: 2,
       proctoring: 'Online Proctored',
-      status: 'Full',
+      status: 'Enrolled',
     },
     {
       id: 4,
@@ -65,7 +65,7 @@ const AvailableExams = ({ onBack }) => {
       time: '1:00 PM',
       duration: 2,
       proctoring: 'Online Proctored',
-      status: 'Full',
+      status: 'Available',
     },
     {
       id: 6,
@@ -88,10 +88,8 @@ const AvailableExams = ({ onBack }) => {
   );
 
   const handleEnroll = (examId) => {
-    const exam = exams.find((e) => e.id === examId);
-    console.log('Enrolling in exam:', exam);
-    // TODO: Firebase enrollment logic will go here
-    alert(`Successfully enrolled in ${exam.courseName}`);
+    // Navigate to identity verification before enrollment
+    navigate('/verification');
   };
 
   return (

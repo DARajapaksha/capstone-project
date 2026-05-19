@@ -1,13 +1,19 @@
 import React from 'react';
 import './ExamCard.css';
-import { Calendar, Clock, MapPin } from 'lucide-react';
+import { Calendar, Clock, MapPin, CheckCircle } from 'lucide-react';
 
 const ExamCard = ({ exam, onEnroll }) => {
+  let btnText = 'Enroll Now';
+  if (exam.status === 'Full') btnText = 'Exam Full';
+  if (exam.status === 'Enrolled') btnText = 'Already Enrolled';
+
+  const disabled = exam.status === 'Full' || exam.status === 'Enrolled';
+
   return (
     <div className="exam-card">
       <div className="exam-card-header">
         <div className="exam-code">{exam.courseCode}</div>
-        <div className="exam-badge">{exam.status}</div>
+        <div className={`exam-badge status-${exam.status}`}>{exam.status}</div>
       </div>
 
       <h3 className="exam-title">{exam.courseName}</h3>
@@ -30,8 +36,13 @@ const ExamCard = ({ exam, onEnroll }) => {
         </div>
       </div>
 
-      <button className="enroll-button" onClick={() => onEnroll(exam.id)}>
-        Exam Full
+      <button 
+        className={`enroll-button status-${exam.status}`} 
+        onClick={() => !disabled && onEnroll(exam.id)}
+        disabled={disabled}
+      >
+        {exam.status === 'Enrolled' && <CheckCircle size={16} />}
+        {btnText}
       </button>
 
       <p className="verification-text">Identity verification required</p>

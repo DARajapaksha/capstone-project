@@ -47,7 +47,6 @@
 }
 
 .exam-badge {
-  background: linear-gradient(135deg, #ff6b9d 0%, #ff4d7d 100%);
   color: white;
   font-size: 12px;
   font-weight: 600;
@@ -55,6 +54,17 @@
   border-radius: 20px;
   text-transform: uppercase;
 }
+
+.exam-badge.status-Full {
+  background: linear-gradient(135deg, #ff6b9d 0%, #ff4d7d 100%);
+}
+.exam-badge.status-Available {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+.exam-badge.status-Enrolled {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
 
 .exam-title {
   font-size: 16px;
@@ -114,8 +124,6 @@
 }
 
 .enroll-button {
-  background: linear-gradient(135deg, #c084fc 0%, #a855f7 100%);
-  color: white;
   border: none;
   padding: 10px 16px;
   border-radius: 8px;
@@ -124,22 +132,34 @@
   cursor: pointer;
   transition: all 0.3s ease;
   margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
-@media (max-width: 640px) {
-  .enroll-button {
-    padding: 9px 14px;
-    font-size: 13px;
-  }
+.enroll-button.status-Available {
+  background: linear-gradient(135deg, #c084fc 0%, #a855f7 100%);
+  color: white;
 }
-
-.enroll-button:hover {
+.enroll-button.status-Available:hover {
   background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%);
   transform: scale(1.02);
 }
-
-.enroll-button:active {
+.enroll-button.status-Available:active {
   transform: scale(0.98);
+}
+
+.enroll-button.status-Full {
+  background: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.enroll-button.status-Enrolled {
+  background: #ecfdf5;
+  color: #059669;
+  cursor: default;
 }
 
 .verification-text {
