@@ -95,7 +95,13 @@ const VerificationTab = () => {
         <div className="mb-6">
           <div className="flex justify-between items-end mb-2">
             <p className="text-xs text-slate-500">Blockchain Transaction Hash</p>
-            <button className="flex items-center gap-1 text-xs font-medium text-slate-600 hover:text-slate-900 transition-colors">
+            <button 
+              onClick={() => {
+                navigator.clipboard.writeText("0x7f8c9c2a3b4e5f6g7h8i9j0k1l2m3n4o");
+                alert("Transaction hash copied to clipboard!");
+              }}
+              className="flex items-center gap-1 text-xs font-medium text-slate-600 hover:text-slate-900 transition-colors"
+            >
               <Copy size={14} /> Copy
             </button>
           </div>
@@ -106,10 +112,16 @@ const VerificationTab = () => {
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <button className="flex items-center justify-center gap-2 py-2.5 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+          <button 
+            onClick={() => alert("Downloading Verification Certificate...")}
+            className="flex items-center justify-center gap-2 py-2.5 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+          >
             <Download size={16} /> Download Certificate
           </button>
-          <button className="flex items-center justify-center gap-2 py-2.5 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+          <button 
+            onClick={() => alert("Opening Verification Details on Blockchain Explorer...")}
+            className="flex items-center justify-center gap-2 py-2.5 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+          >
             <Shield size={16} /> Verification Details
           </button>
         </div>
