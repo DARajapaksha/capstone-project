@@ -88,6 +88,10 @@ capstone-project/
 ## 👥 Contributors
 
 - **DARajapaksha** - *Capstone Developer*
+- **Hashen Dilshan** (@dilacode007) - *Collaborator*
+- **Janidu Viduranga** - *Collaborator*
+- **Anoj Subodha Mohotti** (@subodha78) - *Collaborator*
+- **Wathsala Indeevari** (@WathsalaIndeevari) - *Collaborator*
 
 ## 📄 License
 
