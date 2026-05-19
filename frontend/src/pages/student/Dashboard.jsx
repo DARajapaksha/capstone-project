@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useProfile } from '../../contexts/ProfileContext';
+
 
 import { Calendar, CheckCircle, Clock, Award, User, Mail, CreditCard, FileText, ShieldCheck, ShieldAlert, Edit2, Plus, Zap } from 'lucide-react';
 import AvailableExams from './AvailableExams';
@@ -9,6 +11,7 @@ const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [showAvailableExams, setShowAvailableExams] = useState(false);
   const navigate = useNavigate();
+  const { profile } = useProfile();
 
 
   const tabs = [
@@ -154,8 +157,8 @@ const Dashboard = () => {
                 <User size={32} className="text-purple-600" />
               </div>
               <div>
-                <h3 className="text-xl font-semibold text-gray-900">John Doe</h3>
-                <p className="text-sm text-gray-500">Student ID: 12345678</p>
+                <h3 className="text-xl font-semibold text-gray-900">{profile.name}</h3>
+                <p className="text-sm text-gray-500">Student ID: {profile.studentId}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -178,7 +181,7 @@ const Dashboard = () => {
                 <Mail size={20} className="text-blue-600" />
                 <div>
                   <p className="text-xs text-gray-500 font-medium">Email</p>
-                  <p className="text-sm font-medium text-gray-900">john.doe@university.edu</p>
+                  <p className="text-sm font-medium text-gray-900">{profile.email}</p>
                 </div>
               </div>
             </div>
@@ -188,7 +191,7 @@ const Dashboard = () => {
                 <FileText size={20} className="text-orange-600" />
                 <div>
                   <p className="text-xs text-gray-500 font-medium">NIC</p>
-                  <p className="text-sm font-medium text-gray-900">123456789V</p>
+                  <p className="text-sm font-medium text-gray-900">{profile.nic}</p>
                 </div>
               </div>
             </div>
@@ -198,7 +201,7 @@ const Dashboard = () => {
                 <Calendar size={20} className="text-green-600" />
                 <div>
                   <p className="text-xs text-gray-500 font-medium">Enrollment Date</p>
-                  <p className="text-sm font-medium text-gray-900">Jan 15, 2024</p>
+                  <p className="text-sm font-medium text-gray-900">{profile.enrolledSince}</p>
                 </div>
               </div>
             </div>

@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import { auth } from '../../firebase/firebase';
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
+import { useProfile } from '../../contexts/ProfileContext';
+
 
 // Load saved profile from localStorage, or use defaults
 const DEFAULT_PROFILE = {
@@ -28,6 +30,7 @@ function loadProfile() {
 
 const ProfilePage = () => {
   const navigate = useNavigate();
+  const { profile, updateProfile } = useProfile();
   const [editingProfile, setEditingProfile] = useState(false);
   const [showPasswordSection, setShowPasswordSection] = useState(false);
   const [showCurrentPw, setShowCurrentPw] = useState(false);
@@ -35,32 +38,18 @@ const ProfilePage = () => {
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
-
-  const [profile, setProfile] = useState(() => {
-    const p = loadProfile();
-    // Override email with Firebase current user if available
-    return { ...p, email: auth.currentUser?.email || p.email };
-  });
-
   const [editForm, setEditForm] = useState({ ...profile });
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [notifications, setNotifications] = useState({
-    examReminders: true,
-    verificationAlerts: true,
-    enrollmentUpdates: true,
-    systemAnnouncements: false,
+    examReminders: true, verificationAlerts: true, enrollmentUpdates: true, systemAnnouncements: false,
   });
 
   const handleSaveProfile = async () => {
     setSavingProfile(true);
     await new Promise(r => setTimeout(r, 800));
-    const updated = { ...editForm };
-    setProfile(updated);
-    // Persist to localStorage so changes survive page refresh
-    localStorage.setItem('studentProfile', JSON.stringify(updated));
+    updateProfile(editForm); // updates context + localStorage
     setEditingProfile(false);
     setSavingProfile(false);
-    // Show success banner for 3 seconds
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 3000);
   };
