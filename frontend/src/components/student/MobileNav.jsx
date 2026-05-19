@@ -12,7 +12,6 @@ const navItems = [
   { to: '/student/my-exams', label: 'My Exams', icon: FileText },
   { to: '/verification', label: 'Verification', icon: ShieldCheck },
   { to: '/student/activity', label: 'Activity', icon: Activity },
-  { to: '/student/profile', label: 'Profile', icon: UserCircle },
 ];
 
 const MobileNav = ({ open, onClose }) => {
