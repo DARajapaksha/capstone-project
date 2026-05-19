@@ -153,16 +153,20 @@ const Dashboard = () => {
         <div className="bg-white p-6 rounded-xl shadow-sm">
           <div className="flex items-center justify-between gap-4 mb-6">
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center">
-                <User size={32} className="text-purple-600" />
-              </div>
+              {profile.avatar ? (
+                <img src={profile.avatar} alt="Profile" className="w-16 h-16 rounded-full object-cover" />
+              ) : (
+                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center">
+                  <User size={32} className="text-purple-600" />
+                </div>
+              )}
               <div>
                 <h3 className="text-xl font-semibold text-gray-900">{profile.name}</h3>
                 <p className="text-sm text-gray-500">Student ID: {profile.studentId}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg font-medium hover:bg-slate-200 transition">
+              <button onClick={() => navigate('/student/profile')} className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg font-medium hover:bg-slate-200 transition">
                 <Edit2 size={16} />
                 Edit Profile
               </button>

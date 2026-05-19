@@ -9,6 +9,7 @@ const DEFAULT_PROFILE = {
   enrolledSince: 'January 15, 2026',
   department: 'Faculty of Computing',
   phone: '+94 77 123 4567',
+  avatar: null,
 };
 
 function loadProfile() {
