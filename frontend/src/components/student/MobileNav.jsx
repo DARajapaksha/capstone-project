@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../firebase/firebase';
-import { X, LogOut, LayoutDashboard, ClipboardList, FileText, Activity, ShieldCheck, UserCircle } from 'lucide-react';
+import { X, LogOut, LayoutDashboard, ClipboardList, FileText, Activity, ShieldCheck, UserCircle, Settings } from 'lucide-react';
 
 
 
@@ -60,9 +60,15 @@ const MobileNav = ({ open, onClose }) => {
         </nav>
 
         <div className="mt-8 flex flex-col gap-3 border-t border-slate-200 pt-5">
-          <button className="inline-flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">
+          <button 
+            onClick={() => {
+              onClose();
+              navigate('/student/profile');
+            }} 
+            className="inline-flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+          >
             <span>Settings</span>
-            <X size={20} className="text-slate-500" />
+            <Settings size={20} className="text-slate-500" />
           </button>
           <button onClick={handleLogout} className="inline-flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
             <span>Logout</span>
