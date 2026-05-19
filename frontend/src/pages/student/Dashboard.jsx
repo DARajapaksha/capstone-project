@@ -7,6 +7,7 @@ import { Calendar, CheckCircle, Clock, Award, User, Mail, FileText, ShieldCheck,
 import AvailableExams from './AvailableExams';
 import MyExamsTab from './MyExamsTab';
 import VerificationTab from './VerificationTab';
+import ActivityPage from './ActivityPage';
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -110,22 +111,7 @@ const Dashboard = () => {
       case 'my-exams':
         return <MyExamsTab />;
       case 'activity':
-        return (
-          <div className="bg-white p-6 rounded-xl shadow-sm">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
-            <div className="space-y-3">
-              {activities.map((activity, index) => (
-                <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                  <activity.icon size={20} className={`${activity.color} mt-0.5 flex-shrink-0`} />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">{activity.action}</p>
-                    <p className="text-xs text-gray-600 mt-1">{activity.date}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
+        return <ActivityPage />;
       default:
         return null;
     }
