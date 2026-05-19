@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, ArrowLeft, User } from 'lucide-react';
+import { useProfile } from '../../contexts/ProfileContext';
 
 import ExamCard from '../../components/student/ExamCard';
 import './AvailableExams.css';
@@ -80,6 +81,8 @@ const AvailableExams = ({ onBack }) => {
     },
   ]);
 
+  const { addActivity } = useProfile();
+
   // Filter exams based on search query
   const filteredExams = exams.filter((exam) =>
     exam.courseName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -88,6 +91,10 @@ const AvailableExams = ({ onBack }) => {
   );
 
   const handleEnroll = (examId) => {
+    const exam = exams.find(e => e.id === examId);
+    if (exam) {
+      addActivity(`Started verification for ${exam.courseCode}`, 'verification');
+    }
     // Navigate to identity verification before enrollment
     navigate('/verification');
   };

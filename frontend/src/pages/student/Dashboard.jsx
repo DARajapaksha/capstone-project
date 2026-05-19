@@ -12,8 +12,7 @@ const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [showAvailableExams, setShowAvailableExams] = useState(false);
   const navigate = useNavigate();
-  const { profile } = useProfile();
-
+  const { profile, activities } = useProfile();
 
   const tabs = [
     { id: 'overview', label: 'Overview' },
@@ -22,18 +21,18 @@ const Dashboard = () => {
     { id: 'activity', label: 'Activity' }
   ];
 
-
   const upcomingExams = [
     { title: 'Advanced Mathematics Final', code: 'MATH-401', time: '10:00 AM - 12:00 PM', date: 'March 15, 2026', status: 'Verify Required', statusColor: 'bg-[#F0B100] text-white', borderColor: 'border-[#FFDF20]', actionColor: 'bg-[#5B47FB]', actionIcon: ShieldAlert, statusIcon: ShieldAlert },
     { title: 'Computer Science Midterm', code: 'CS-302', time: '2:00 PM - 4:00 PM', date: 'March 20, 2026', status: 'Verified', statusColor: 'bg-[#00C950] text-white', borderColor: 'border-gray-200', actionColor: 'bg-[#00C950]', actionIcon: ShieldCheck, statusIcon: ShieldCheck }
   ];
 
-  const activities = [
-    { action: 'Identity Verified', date: 'Mar 5, 2026 11:30 AM', icon: CheckCircle, color: 'text-green-600' },
-    { action: 'Enrolled in MATH-401', date: 'Mar 4, 2026 3:30 PM', icon: FileText, color: 'text-blue-600' },
-    { action: 'Completed PHY-201 Exam', date: 'Feb 28, 2026 11:00 AM', icon: CheckCircle, color: 'text-green-600' },
-    { action: 'Profile Updated', date: 'Feb 20, 2026 2:16 PM', icon: User, color: 'text-purple-600' }
-  ];
+  const activityConfig = {
+    verification: { icon: CheckCircle, color: 'text-emerald-500' },
+    enrollment: { icon: FileText, color: 'text-blue-500' },
+    exam: { icon: CheckCircle, color: 'text-emerald-500' },
+    profile: { icon: User, color: 'text-purple-500' },
+    default: { icon: CheckCircle, color: 'text-gray-500' }
+  };
 
   const renderContent = () => {
     switch (activeTab) {
@@ -89,15 +88,19 @@ const Dashboard = () => {
                 <p className="text-sm text-gray-500 mt-1">Your latest actions</p>
               </div>
               <div className="space-y-3">
-                {activities.map((activity, index) => (
-                  <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                    <activity.icon size={20} className={`${activity.color} mt-0.5 flex-shrink-0`} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900">{activity.action}</p>
-                      <p className="text-xs text-gray-600 mt-1">{activity.date}</p>
+                {activities.slice(0, 4).map((activity) => {
+                  const config = activityConfig[activity.type] || activityConfig.default;
+                  const Icon = config.icon;
+                  return (
+                    <div key={activity.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                      <Icon size={20} className={`${config.color} mt-0.5 flex-shrink-0`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900">{activity.title}</p>
+                        <p className="text-xs text-gray-600 mt-1">{activity.date}</p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>

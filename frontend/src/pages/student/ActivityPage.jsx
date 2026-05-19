@@ -1,48 +1,20 @@
 import React from 'react';
+import { useProfile } from '../../contexts/ProfileContext';
 import {
   CheckCircle, FileText, User, ChevronRight
 } from 'lucide-react';
 
-const activities = [
-  { 
-    id: 1, 
-    type: 'verification', 
-    icon: CheckCircle, 
-    color: 'text-emerald-500', 
-    bg: 'bg-emerald-50', 
-    title: 'Identity Verified', 
-    date: 'Mar 5, 2026 11:00 AM'
-  },
-  { 
-    id: 2, 
-    type: 'enrollment', 
-    icon: FileText, 
-    color: 'text-blue-500', 
-    bg: 'bg-blue-50', 
-    title: 'Enrolled in MATH-401', 
-    date: 'Mar 4, 2026 3:30 PM'
-  },
-  { 
-    id: 3, 
-    type: 'exam', 
-    icon: CheckCircle, 
-    color: 'text-emerald-500', 
-    bg: 'bg-emerald-50', 
-    title: 'Completed PHY-201 Exam', 
-    date: 'Feb 28, 2026 11:00 AM'
-  },
-  { 
-    id: 4, 
-    type: 'profile', 
-    icon: FileText, 
-    color: 'text-blue-500', 
-    bg: 'bg-blue-50', 
-    title: 'Profile Updated', 
-    date: 'Feb 20, 2026 2:15 PM'
-  },
-];
+const activityConfig = {
+  verification: { icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+  enrollment: { icon: FileText, color: 'text-blue-500', bg: 'bg-blue-50' },
+  exam: { icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+  profile: { icon: User, color: 'text-purple-500', bg: 'bg-purple-50' },
+  default: { icon: CheckCircle, color: 'text-gray-500', bg: 'bg-gray-50' }
+};
 
 const ActivityPage = () => {
+  const { activities } = useProfile();
+
   return (
     <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm">
       <div className="mb-6">
@@ -52,15 +24,16 @@ const ActivityPage = () => {
 
       <div className="space-y-4">
         {activities.map((activity) => {
-          const Icon = activity.icon;
+          const config = activityConfig[activity.type] || activityConfig.default;
+          const Icon = config.icon;
           return (
             <div
               key={activity.id}
               className="flex items-center justify-between p-4 rounded-xl border border-slate-100 hover:border-slate-200 transition-colors cursor-pointer group"
             >
               <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-full ${activity.bg} flex items-center justify-center flex-shrink-0`}>
-                  <Icon size={20} className={activity.color} />
+                <div className={`w-12 h-12 rounded-full ${config.bg} flex items-center justify-center flex-shrink-0`}>
+                  <Icon size={20} className={config.color} />
                 </div>
                 <div>
                   <h3 className="font-semibold text-slate-900">{activity.title}</h3>
