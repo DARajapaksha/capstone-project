@@ -117,7 +117,7 @@ const AvailableExams = ({ onBack }) => {
           </div>
         </div>
 
-        <button className="profile-button" onClick={() => navigate('/student/profile')}>
+        <button className="profile-button" onClick={() => navigate('/student')}>
           <User size={18} />
           <span>My Profile</span>
         </button>
