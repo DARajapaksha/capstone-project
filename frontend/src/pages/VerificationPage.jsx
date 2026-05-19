@@ -165,7 +165,7 @@ export default function VerificationPage() {
         
         {/* Top Header */}
         <div className="flex flex-col md:flex-row md:items-center mb-8 gap-4">
-          <button onClick={() => navigate('/student/profile')} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium hover:bg-slate-50 w-max shadow-sm">
+          <button onClick={() => navigate('/student')} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium hover:bg-slate-50 w-max shadow-sm">
             <ArrowLeft className="w-4 h-4" /> Back to Profile
           </button>
           <div className="md:ml-4">
