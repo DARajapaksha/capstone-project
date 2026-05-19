@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+
 import { Calendar, CheckCircle, Clock, Award, User, Mail, CreditCard, FileText, ShieldCheck, ShieldAlert, Edit2, Plus, Zap } from 'lucide-react';
 import AvailableExams from './AvailableExams';
 import MyExamsTab from './MyExamsTab';
@@ -6,6 +8,8 @@ import MyExamsTab from './MyExamsTab';
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [showAvailableExams, setShowAvailableExams] = useState(false);
+  const navigate = useNavigate();
+
 
   const tabs = [
     { id: 'overview', label: 'Overview' },
@@ -67,7 +71,10 @@ const Dashboard = () => {
                       <span>{exam.date} • {exam.time}</span>
                     </div>
                     {exam.status === 'Verify Required' && (
-                      <button className={`w-full px-4 py-2 text-white rounded-lg font-medium hover:opacity-90 transition flex items-center justify-center gap-2 ${exam.actionColor}`}>
+                      <button
+                        onClick={() => navigate('/verification')}
+                        className={`w-full px-4 py-2 text-white rounded-lg font-medium hover:opacity-90 transition flex items-center justify-center gap-2 ${exam.actionColor}`}
+                      >
                         <exam.actionIcon size={16} />
                         Verify Identity for this Exam
                       </button>
@@ -216,7 +223,13 @@ const Dashboard = () => {
           {tabs.map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                if (tab.id === 'available') {
+                  navigate('/verification');
+                } else {
+                  setActiveTab(tab.id);
+                }
+              }}
               className={`text-sm font-medium transition ${activeTab === tab.id ? 'text-purple-600 border-b-2 border-purple-600 pb-2' : 'text-gray-500 hover:text-gray-700'}`}
             >
               {tab.label}

@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ProtectedRoute, PublicOnlyRoute } from './components/ProtectedRoute';
 
 // Auth pages (from feature/login-register)
 import Login from './pages/auth/Login';
@@ -23,18 +24,18 @@ function App() {
         {/* Default: redirect to login */}
         <Route path="/" element={<Navigate to="/login" replace />} />
 
-        {/* ── Auth Routes ── */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+        {/* ── Public-only Auth Routes (redirect away if already logged in) ── */}
+        <Route path="/login" element={<PublicOnlyRoute><Login /></PublicOnlyRoute>} />
+        <Route path="/register" element={<PublicOnlyRoute><Register /></PublicOnlyRoute>} />
 
-        {/* ── Home / Student Profile ── */}
-        <Route path="/home" element={<Home />} />
+        {/* ── Protected: Home / Student Profile ── */}
+        <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
 
-        {/* ── Identity Verification (camera + upload) ── */}
-        <Route path="/verification" element={<VerificationPage />} />
+        {/* ── Protected: Identity Verification ── */}
+        <Route path="/verification" element={<ProtectedRoute><VerificationPage /></ProtectedRoute>} />
 
-        {/* ── Student Exam Dashboard ── */}
-        <Route path="/student" element={<StudentLayout />}>
+        {/* ── Protected: Student Exam Dashboard ── */}
+        <Route path="/student" element={<ProtectedRoute><StudentLayout /></ProtectedRoute>}>
           <Route index element={<Dashboard />} />
           <Route path="available" element={<AvailableExams />} />
           <Route path="my-exams" element={<MyExamsTab />} />
@@ -48,4 +49,5 @@ function App() {
   );
 }
 
-export default App;
+export default App;
+
