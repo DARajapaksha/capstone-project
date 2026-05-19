@@ -145,6 +145,66 @@ export default function VerificationPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleDownloadCertificate = () => {
+    if (!verificationResult) return;
+    
+    const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Identity Verification Certificate</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; background: #f8fafc; padding: 40px; color: #0f172a; }
+    .certificate { background: white; max-width: 800px; margin: 0 auto; padding: 60px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); text-align: center; border: 1px solid #e2e8f0; }
+    .header { color: #4f46e5; font-size: 32px; font-weight: 800; margin-bottom: 10px; }
+    .badge { display: inline-block; background: #10b981; color: white; padding: 8px 16px; border-radius: 999px; font-weight: bold; margin-bottom: 40px; }
+    .details { text-align: left; background: #f8fafc; padding: 30px; border-radius: 12px; margin-bottom: 40px; }
+    .row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #e2e8f0; }
+    .row:last-child { border-bottom: none; }
+    .label { color: #64748b; font-weight: 500; }
+    .value { font-weight: 600; color: #0f172a; }
+    .footer { color: #94a3b8; font-size: 14px; margin-top: 40px; }
+    .hash { word-break: break-all; font-family: monospace; color: #4f46e5; }
+  </style>
+</head>
+<body>
+  <div class="certificate">
+    <div class="header">Certificate of Identity Verification</div>
+    <div class="badge">✓ Identity Verified</div>
+    
+    <p style="margin-bottom: 40px; color: #475569; line-height: 1.6;">
+      This certifies that the identity of the student has been successfully verified for the examination <strong>MATH-401</strong>. The verification process utilized advanced AI liveness detection and document matching.
+    </p>
+
+    <div class="details">
+      <div class="row"><span class="label">Exam Code</span><span class="value">MATH-401</span></div>
+      <div class="row"><span class="label">Date & Time</span><span class="value">${verificationResult.date}</span></div>
+      <div class="row"><span class="label">Face Match Score</span><span class="value">${verificationResult.score}%</span></div>
+      <div class="row"><span class="label">Liveness Check</span><span class="value" style="color: #10b981;">PASSED</span></div>
+      <div class="row"><span class="label">Blockchain Record Hash</span><span class="value hash">${verificationResult.hash}</span></div>
+    </div>
+
+    <div class="footer">
+      This is a digitally generated certificate.<br>
+      Issued by the Secure Identity Verification System.
+    </div>
+  </div>
+</body>
+</html>
+    `;
+
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'Verification_Certificate_MATH-401.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+
   // --- RENDER HELPERS ---
   let progressPercentage = 0;
   if (currentStep === 1) {
@@ -476,7 +536,7 @@ export default function VerificationPage() {
             <div className="w-full max-w-md flex flex-col gap-3">
               {verificationResult.status === 'success' && (
                 <>
-                  <button className="w-full py-3.5 bg-white border border-slate-300 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-colors shadow-sm flex items-center justify-center gap-2">
+                  <button onClick={handleDownloadCertificate} className="w-full py-3.5 bg-white border border-slate-300 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-colors shadow-sm flex items-center justify-center gap-2">
                     <FileText className="w-4 h-4" /> Download Certificate
                   </button>
                   <button onClick={() => navigate('/student')} className="w-full py-3.5 bg-indigo-500 text-white font-medium rounded-xl hover:bg-indigo-600 transition-colors shadow-sm flex items-center justify-center gap-2">
