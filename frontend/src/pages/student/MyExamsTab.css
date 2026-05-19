@@ -1,0 +1,383 @@
+.my-exams-tab {
+  width: 100%;
+}
+
+.exams-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.exam-item {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 24px;
+  transition: all 0.3s ease;
+}
+
+.exam-item:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: #d1d5db;
+}
+
+.exam-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.exam-title-section {
+  flex: 1;
+}
+
+.exam-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 6px 0;
+}
+
+.exam-code {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0;
+  font-weight: 500;
+}
+
+.exam-badges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.status-label {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 6px;
+  background-color: #f3f4f6;
+  color: #374151;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-label.upcoming {
+  background-color: #fef08a;
+  color: #854d0e;
+}
+
+.status-label.completed {
+  background-color: #10b981;
+  color: white;
+}
+
+.badge-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge-tag.yellow {
+  background-color: #fbbf24;
+  color: white;
+}
+
+.badge-tag.green {
+  background-color: #10b981;
+  color: white;
+}
+
+.badge-tag.red {
+  background-color: #ef4444;
+  color: white;
+}
+
+.exam-details-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 24px;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.detail-box {
+  display: flex;
+  flex-direction: column;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.detail-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 6px 0;
+}
+
+.detail-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.detail-value.verified {
+  color: #10b981;
+}
+
+.detail-value.score {
+  color: #5b47fb;
+  font-size: 18px;
+}
+
+.verification-alert {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background-color: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+
+.alert-icon {
+  color: #f59e0b;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.alert-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  margin: 0 0 4px 0;
+}
+
+.alert-message {
+  font-size: 13px;
+  color: #b45309;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.exam-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.exam-actions-verified {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+.view-details-btn {
+  flex: 1;
+}
+
+.action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.action-button.primary {
+  background: linear-gradient(135deg, #5b47fb 0%, #4839e0 100%);
+  color: white;
+  flex: 1;
+}
+
+.action-button.primary:hover {
+  background: linear-gradient(135deg, #4839e0 0%, #3c2bd8 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(91, 71, 251, 0.3);
+}
+
+.action-button.secondary {
+  background: white;
+  color: #6b7280;
+  border: 2px solid #e5e7eb;
+}
+
+.action-button.secondary:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+  color: #374151;
+}
+
+.action-button.cancel-btn {
+  background: white;
+  color: #ef4444;
+  border: 2px solid #fca5a5;
+}
+
+.action-button.cancel-btn:hover {
+  background: #fef2f2;
+  border-color: #f87171;
+  color: #dc2626;
+}
+
+.action-button.download-btn {
+  background: white;
+  color: #059669;
+  border: 2px solid #a7f3d0;
+  flex: 1;
+}
+
+.action-button.download-btn:hover {
+  background: #f0fdf4;
+  border-color: #6ee7b7;
+  color: #047857;
+}
+
+.verify-btn {
+  flex: 1;
+}
+
+.exam-divider {
+  display: none;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .exam-item {
+    padding: 16px;
+  }
+
+  .exam-header {
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+  }
+
+  .exam-badges {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .exam-details-row {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+  }
+
+  .exam-actions {
+    flex-direction: column;
+  }
+
+  .action-button {
+    width: 100%;
+    padding: 11px 16px;
+    font-size: 13px;
+  }
+
+  .action-button.primary,
+  .action-button.secondary,
+  .action-button.cancel-btn,
+  .action-button.download-btn {
+    flex: 1 !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .exam-item {
+    padding: 12px;
+    border-radius: 8px;
+  }
+
+  .exam-header {
+    gap: 8px;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+  }
+
+  .exam-name {
+    font-size: 16px;
+    margin: 0 0 4px 0;
+  }
+
+  .exam-code {
+    font-size: 12px;
+  }
+
+  .exam-details-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+  }
+
+  .detail-label {
+    font-size: 11px;
+    margin: 0 0 4px 0;
+  }
+
+  .detail-value {
+    font-size: 14px;
+  }
+
+  .verification-alert {
+    padding: 10px 12px;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .alert-icon {
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+  }
+
+  .alert-title {
+    font-size: 13px;
+    margin: 0 0 2px 0;
+  }
+
+  .alert-message {
+    font-size: 12px;
+  }
+
+  .exam-actions {
+    gap: 8px;
+  }
+
+  .action-button {
+    padding: 9px 12px;
+    font-size: 12px;
+  }
+
+  .exams-list {
+    gap: 16px;
+  }
+}
