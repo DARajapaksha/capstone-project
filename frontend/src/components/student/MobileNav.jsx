@@ -1,7 +1,8 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../firebase/firebase';
-import { X, LogOut, LayoutDashboard, ClipboardList, FileText, Activity } from 'lucide-react';
+import { X, LogOut, LayoutDashboard, ClipboardList, FileText, Activity, ShieldCheck, UserCircle } from 'lucide-react';
+
 
 
 
@@ -9,7 +10,9 @@ const navItems = [
   { to: '/student', label: 'Overview', icon: LayoutDashboard },
   { to: '/student/available', label: 'Available', icon: ClipboardList },
   { to: '/student/my-exams', label: 'My Exams', icon: FileText },
-  { to: '/student/activity', label: 'Activity', icon: Activity }
+  { to: '/verification', label: 'Verification', icon: ShieldCheck },
+  { to: '/student/activity', label: 'Activity', icon: Activity },
+  { to: '/student/profile', label: 'Profile', icon: UserCircle },
 ];
 
 const MobileNav = ({ open, onClose }) => {

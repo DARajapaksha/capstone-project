@@ -3,11 +3,14 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase/firebase';
 import MobileNav from '../components/student/MobileNav';
+import NotificationsDrawer from '../components/student/NotificationsDrawer';
 import { Bell, LogOut, Menu, ShieldCheck, Settings } from 'lucide-react';
+
 
 
 const StudentLayout = () => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -39,10 +42,11 @@ const StudentLayout = () => {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50" aria-label="Notifications">
+              <button onClick={() => setNotifOpen(true)} className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50" aria-label="Notifications">
                 <Bell size={20} />
+                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full" />
               </button>
-              <button className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50" aria-label="Settings">
+              <button onClick={() => navigate('/student/profile')} className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50" aria-label="Settings">
                 <Settings size={20} />
               </button>
               <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-xl hover:bg-indigo-700">
@@ -57,6 +61,7 @@ const StudentLayout = () => {
         </div>
       </div>
       <MobileNav open={menuOpen} onClose={() => setMenuOpen(false)} />
+      <NotificationsDrawer open={notifOpen} onClose={() => setNotifOpen(false)} />
     </div>
   );
 };

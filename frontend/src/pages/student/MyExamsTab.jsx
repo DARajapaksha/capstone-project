@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AlertCircle, CheckCircle, Clock, Download, Eye } from 'lucide-react';
 import './MyExamsTab.css';
 
+
 const MyExamsTab = () => {
+  const navigate = useNavigate();
   const [exams] = useState([
+
     {
       id: 1,
       courseName: 'Advanced Mathematics Final',
@@ -45,10 +49,10 @@ const MyExamsTab = () => {
     },
   ]);
 
-  const handleVerifyIdentity = (examId) => {
-    console.log('Verify identity for exam:', examId);
-    alert('Identity verification flow would open here');
+  const handleVerifyIdentity = () => {
+    navigate('/verification');
   };
+
 
   const handleCancelEnrollment = (examId) => {
     console.log('Cancel enrollment for exam:', examId);
