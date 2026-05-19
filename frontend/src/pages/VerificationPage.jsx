@@ -540,7 +540,7 @@ export default function VerificationPage() {
                     <FileText className="w-4 h-4" /> Download Certificate
                   </button>
                   <button onClick={() => navigate('/student')} className="w-full py-3.5 bg-indigo-500 text-white font-medium rounded-xl hover:bg-indigo-600 transition-colors shadow-sm flex items-center justify-center gap-2">
-                    <Home className="w-4 h-4" /> Go to Profile
+                    <Home className="w-4 h-4" /> Go to Dashboard
                   </button>
                 </>
               )}
@@ -550,13 +550,13 @@ export default function VerificationPage() {
                     <RefreshCw className="w-4 h-4" /> Try Again
                   </button>
                   <button onClick={() => navigate('/student')} className="w-full py-3.5 bg-white border border-slate-300 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-colors shadow-sm flex items-center justify-center gap-2">
-                    <Home className="w-4 h-4" /> Go to Profile
+                    <Home className="w-4 h-4" /> Go to Dashboard
                   </button>
                 </>
               )}
               {verificationResult.status === 'review' && (
                 <button onClick={() => navigate('/student')} className="w-full py-3.5 bg-white border border-slate-300 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-colors shadow-sm flex items-center justify-center gap-2">
-                  <Home className="w-4 h-4" /> Go to Profile
+                  <Home className="w-4 h-4" /> Go to Dashboard
                 </button>
               )}
             </div>
