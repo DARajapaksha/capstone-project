@@ -11,6 +11,7 @@ import { Bell, LogOut, Menu, ShieldCheck, Settings } from 'lucide-react';
 const StudentLayout = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(2); // 2 unread initially
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -44,7 +45,7 @@ const StudentLayout = () => {
             <div className="flex items-center gap-2">
               <button onClick={() => setNotifOpen(true)} className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50" aria-label="Notifications">
                 <Bell size={20} />
-                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full" />
+                {unreadCount > 0 && <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full" />}
               </button>
               <button onClick={() => navigate('/student/profile')} className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50" aria-label="Settings">
                 <Settings size={20} />
@@ -61,7 +62,11 @@ const StudentLayout = () => {
         </div>
       </div>
       <MobileNav open={menuOpen} onClose={() => setMenuOpen(false)} />
-      <NotificationsDrawer open={notifOpen} onClose={() => setNotifOpen(false)} />
+      <NotificationsDrawer
+        open={notifOpen}
+        onClose={() => setNotifOpen(false)}
+        onUnreadChange={(count) => setUnreadCount(count)}
+      />
     </div>
   );
 };
