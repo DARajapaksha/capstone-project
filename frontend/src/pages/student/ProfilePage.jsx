@@ -7,6 +7,25 @@ import {
 import { auth } from '../../firebase/firebase';
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 
+// Load saved profile from localStorage, or use defaults
+const DEFAULT_PROFILE = {
+  name: 'Alex Johnson',
+  studentId: 'STU-2026-001',
+  email: 'alex.johnson@university.edu',
+  nic: '123456789V',
+  enrolledSince: 'January 15, 2026',
+  department: 'Faculty of Computing',
+  phone: '+94 77 123 4567',
+};
+
+function loadProfile() {
+  try {
+    const saved = localStorage.getItem('studentProfile');
+    return saved ? { ...DEFAULT_PROFILE, ...JSON.parse(saved) } : { ...DEFAULT_PROFILE };
+  } catch { return { ...DEFAULT_PROFILE }; }
+}
+
+
 const ProfilePage = () => {
   const navigate = useNavigate();
   const [editingProfile, setEditingProfile] = useState(false);
@@ -15,15 +34,12 @@ const ProfilePage = () => {
   const [showNewPw, setShowNewPw] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
-  const [profile, setProfile] = useState({
-    name: 'Alex Johnson',
-    studentId: 'STU-2026-001',
-    email: auth.currentUser?.email || 'alex.johnson@university.edu',
-    nic: '123456789V',
-    enrolledSince: 'January 15, 2026',
-    department: 'Faculty of Computing',
-    phone: '+94 77 123 4567',
+  const [profile, setProfile] = useState(() => {
+    const p = loadProfile();
+    // Override email with Firebase current user if available
+    return { ...p, email: auth.currentUser?.email || p.email };
   });
 
   const [editForm, setEditForm] = useState({ ...profile });
@@ -38,9 +54,15 @@ const ProfilePage = () => {
   const handleSaveProfile = async () => {
     setSavingProfile(true);
     await new Promise(r => setTimeout(r, 800));
-    setProfile({ ...editForm });
+    const updated = { ...editForm };
+    setProfile(updated);
+    // Persist to localStorage so changes survive page refresh
+    localStorage.setItem('studentProfile', JSON.stringify(updated));
     setEditingProfile(false);
     setSavingProfile(false);
+    // Show success banner for 3 seconds
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 3000);
   };
 
   const handleSavePassword = async () => {
@@ -61,6 +83,13 @@ const ProfilePage = () => {
 
   return (
     <div className="space-y-6 max-w-3xl">
+      {/* Save success banner */}
+      {saveSuccess && (
+        <div className="flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-xl animate-pulse">
+          <CheckCircle size={18} className="text-emerald-500 flex-shrink-0" />
+          <p className="text-sm font-semibold text-emerald-800">Profile saved successfully!</p>
+        </div>
+      )}
       {/* Profile Card */}
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
         <div className="h-1.5 bg-gradient-to-r from-indigo-500 to-purple-500" />

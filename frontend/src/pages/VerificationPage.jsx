@@ -1,9 +1,13 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Upload, Camera as CameraIcon, Eye, Brain, ShieldCheck, ArrowRight, Check, CheckCircle, RefreshCw, XCircle, Clock, Copy, FileText, Home, AlertCircle } from 'lucide-react';
 import packageInfo from '../../package.json';
 
+
 export default function VerificationPage() {
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
+
   const [selectedImage, setSelectedImage] = useState(null);
   
   // Camera States
@@ -161,7 +165,7 @@ export default function VerificationPage() {
         
         {/* Top Header */}
         <div className="flex flex-col md:flex-row md:items-center mb-8 gap-4">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium hover:bg-slate-50 w-max shadow-sm">
+          <button onClick={() => navigate('/student/profile')} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium hover:bg-slate-50 w-max shadow-sm">
             <ArrowLeft className="w-4 h-4" /> Back to Profile
           </button>
           <div className="md:ml-4">
@@ -475,7 +479,7 @@ export default function VerificationPage() {
                   <button className="w-full py-3.5 bg-white border border-slate-300 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-colors shadow-sm flex items-center justify-center gap-2">
                     <FileText className="w-4 h-4" /> Download Certificate
                   </button>
-                  <button className="w-full py-3.5 bg-indigo-500 text-white font-medium rounded-xl hover:bg-indigo-600 transition-colors shadow-sm flex items-center justify-center gap-2">
+                  <button onClick={() => navigate('/student/profile')} className="w-full py-3.5 bg-indigo-500 text-white font-medium rounded-xl hover:bg-indigo-600 transition-colors shadow-sm flex items-center justify-center gap-2">
                     <Home className="w-4 h-4" /> Go to Profile
                   </button>
                 </>
@@ -485,13 +489,13 @@ export default function VerificationPage() {
                   <button onClick={handleTryAgain} className="w-full py-3.5 bg-indigo-500 text-white font-medium rounded-xl hover:bg-indigo-600 transition-colors shadow-sm flex items-center justify-center gap-2">
                     <RefreshCw className="w-4 h-4" /> Try Again
                   </button>
-                  <button className="w-full py-3.5 bg-white border border-slate-300 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-colors shadow-sm flex items-center justify-center gap-2">
+                  <button onClick={() => navigate('/student/profile')} className="w-full py-3.5 bg-white border border-slate-300 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-colors shadow-sm flex items-center justify-center gap-2">
                     <Home className="w-4 h-4" /> Go to Profile
                   </button>
                 </>
               )}
               {verificationResult.status === 'review' && (
-                <button className="w-full py-3.5 bg-white border border-slate-300 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-colors shadow-sm flex items-center justify-center gap-2">
+                <button onClick={() => navigate('/student/profile')} className="w-full py-3.5 bg-white border border-slate-300 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-colors shadow-sm flex items-center justify-center gap-2">
                   <Home className="w-4 h-4" /> Go to Profile
                 </button>
               )}
