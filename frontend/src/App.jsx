@@ -2,8 +2,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { ProtectedRoute, PublicOnlyRoute } from './components/ProtectedRoute';
 import { ProfileProvider } from './contexts/ProfileContext';
 
-import Login from './pages/auth/Login';
-import Register from './pages/auth/Register';
+import Login from './pages/auth/login';
+import Register from './pages/auth/register';
 import Home from './pages/Home';
 import VerificationPage from './pages/VerificationPage';
 import StudentLayout from './layouts/StudentLayout';
