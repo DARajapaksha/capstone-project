@@ -1,17 +1,32 @@
-import { Link, useLocation } from 'react-router-dom';
-import { X, LayoutDashboard, ClipboardList, FileText, Activity } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { signOut } from 'firebase/auth';
+import { auth } from '../../firebase/firebase';
+import { X, LogOut, LayoutDashboard, ClipboardList, FileText, Activity, ShieldCheck, UserCircle } from 'lucide-react';
+
+
+
 
 const navItems = [
   { to: '/student', label: 'Overview', icon: LayoutDashboard },
   { to: '/student/available', label: 'Available', icon: ClipboardList },
   { to: '/student/my-exams', label: 'My Exams', icon: FileText },
-  { to: '/student/activity', label: 'Activity', icon: Activity }
+  { to: '/verification', label: 'Verification', icon: ShieldCheck },
+  { to: '/student/activity', label: 'Activity', icon: Activity },
+  { to: '/student/profile', label: 'Profile', icon: UserCircle },
 ];
 
 const MobileNav = ({ open, onClose }) => {
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    onClose();
+    await signOut(auth);
+    navigate('/login');
+  };
 
   if (!open) return null;
+
 
   return (
     <div className="fixed inset-0 z-40 bg-slate-900/40">
@@ -49,9 +64,9 @@ const MobileNav = ({ open, onClose }) => {
             <span>Settings</span>
             <X size={20} className="text-slate-500" />
           </button>
-          <button className="inline-flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+          <button onClick={handleLogout} className="inline-flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
             <span>Logout</span>
-            <X size={20} className="text-slate-500" />
+            <LogOut size={20} className="text-slate-500" />
           </button>
         </div>
       </div>

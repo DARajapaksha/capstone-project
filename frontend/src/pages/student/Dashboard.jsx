@@ -1,4 +1,8 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useProfile } from '../../contexts/ProfileContext';
+
+
 import { Calendar, CheckCircle, Clock, Award, User, Mail, CreditCard, FileText, ShieldCheck, ShieldAlert, Edit2, Plus, Zap } from 'lucide-react';
 import AvailableExams from './AvailableExams';
 import MyExamsTab from './MyExamsTab';
@@ -7,13 +11,10 @@ import EditProfileModal from '../../components/student/EditProfileModal';
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [showAvailableExams, setShowAvailableExams] = useState(false);
-  const [showEditProfile, setShowEditProfile] = useState(false);
-  const [profile, setProfile] = useState({
-    fullName: 'John Doe',
-    email: 'john.doe@university.edu',
-    nic: '123456789V',
-    studentId: 'STU-2026-001',
-  });
+
+  const navigate = useNavigate();
+  const { profile } = useProfile();
+
 
   const tabs = [
     { id: 'overview', label: 'Overview' },
@@ -75,7 +76,10 @@ const Dashboard = () => {
                       <span>{exam.date} • {exam.time}</span>
                     </div>
                     {exam.status === 'Verify Required' && (
-                      <button className={`w-full px-4 py-2 text-white rounded-lg font-medium hover:opacity-90 transition flex items-center justify-center gap-2 ${exam.actionColor}`}>
+                      <button
+                        onClick={() => navigate('/verification')}
+                        className={`w-full px-4 py-2 text-white rounded-lg font-medium hover:opacity-90 transition flex items-center justify-center gap-2 ${exam.actionColor}`}
+                      >
                         <exam.actionIcon size={16} />
                         Verify Identity for this Exam
                       </button>
@@ -151,19 +155,24 @@ const Dashboard = () => {
         <div className="bg-white p-6 rounded-xl shadow-sm">
           <div className="flex items-center justify-between gap-4 mb-6">
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center">
-                <span className="text-lg font-bold text-purple-600">{profile.fullName.split(' ').map(name => name[0]).join('').slice(0, 2).toUpperCase()}</span>
-              </div>
+
+              {profile.avatar ? (
+                <img src={profile.avatar} alt="Profile" className="w-16 h-16 rounded-full object-cover" />
+              ) : (
+                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center">
+                  <User size={32} className="text-purple-600" />
+                </div>
+              )}
               <div>
-                <h3 className="text-xl font-semibold text-gray-900">{profile.fullName}</h3>
+                <h3 className="text-xl font-semibold text-gray-900">{profile.name}</h3>
+
                 <p className="text-sm text-gray-500">Student ID: {profile.studentId}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowEditProfile(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg font-medium hover:bg-slate-200 transition"
-              >
+
+              <button onClick={() => navigate('/student/profile')} className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg font-medium hover:bg-slate-200 transition">
+
                 <Edit2 size={16} />
                 Edit Profile
               </button>
@@ -203,7 +212,7 @@ const Dashboard = () => {
                 <Calendar size={20} className="text-green-600" />
                 <div>
                   <p className="text-xs text-gray-500 font-medium">Enrollment Date</p>
-                  <p className="text-sm font-medium text-gray-900">Jan 15, 2024</p>
+                  <p className="text-sm font-medium text-gray-900">{profile.enrolledSince}</p>
                 </div>
               </div>
             </div>
@@ -228,7 +237,13 @@ const Dashboard = () => {
           {tabs.map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                if (tab.id === 'available') {
+                  navigate('/verification');
+                } else {
+                  setActiveTab(tab.id);
+                }
+              }}
               className={`text-sm font-medium transition ${activeTab === tab.id ? 'text-purple-600 border-b-2 border-purple-600 pb-2' : 'text-gray-500 hover:text-gray-700'}`}
             >
               {tab.label}

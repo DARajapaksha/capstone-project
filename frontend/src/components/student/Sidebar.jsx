@@ -1,11 +1,13 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, ClipboardList, FileText, Activity } from 'lucide-react';
+import { LayoutDashboard, ClipboardList, FileText, Activity, ShieldCheck, UserCircle } from 'lucide-react';
 
 const navItems = [
   { to: '/student', label: 'Overview', icon: LayoutDashboard },
   { to: '/student/available', label: 'Available Exams', icon: ClipboardList },
   { to: '/student/my-exams', label: 'My Exams', icon: FileText },
-  { to: '/student/activity', label: 'Activity', icon: Activity }
+  { to: '/verification', label: 'Verification', icon: ShieldCheck },
+  { to: '/student/activity', label: 'Activity', icon: Activity },
+  { to: '/student/profile', label: 'Profile', icon: UserCircle },
 ];
 
 const Sidebar = () => {
