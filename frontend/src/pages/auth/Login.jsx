@@ -36,7 +36,7 @@ const Login = () => {
         localStorage.setItem('token', data.token);
       }
 
-      navigate('/home');
+      navigate('/student');
     } catch (error) {
       console.error('Login Error:', error);
       const message = error?.message || 'An error occurred during login. Please try again.';
