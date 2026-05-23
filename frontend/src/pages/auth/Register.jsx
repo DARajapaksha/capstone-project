@@ -10,7 +10,6 @@ const Register = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const navigate = useNavigate();
 
-
   const handleRegister = async (e) => {
     e.preventDefault();
 
@@ -68,7 +67,7 @@ const Register = () => {
           <BrandSection />
         </div>
 
-        {/* RIGHT SIDE: Locked Width Card (MATCHES LOGIN EXACTLY) */}
+        {/* RIGHT SIDE */}
         <div className="flex-1 w-full max-w-md mx-auto lg:mx-0">
           <div className="bg-white rounded-[32px] shadow-2xl shadow-slate-200 p-8 md:p-10 border border-white">
             <h2 className="text-2xl font-bold text-left">Create Account</h2>
