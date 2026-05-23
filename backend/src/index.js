@@ -5,10 +5,24 @@ const routes = require('./routes');
 
 const app = express();
 
+// Allowed origins — trims trailing slashes so http://localhost:5173/ == http://localhost:5173
+const ALLOWED_ORIGINS = (process.env.CORS_ORIGIN || 'http://localhost:5173')
+  .split(',')
+  .map(o => o.trim().replace(/\/$/, ''));
+
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (curl, Postman, mobile apps)
+    if (!origin) return callback(null, true);
+    const normalised = origin.replace(/\/$/, '');
+    if (ALLOWED_ORIGINS.includes(normalised)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS: origin "${origin}" is not allowed.`));
+    }
+  },
   credentials: true
-})); // This allows your frontend to talk to your backend.
+})); // Allows your frontend to talk to your backend.
 app.use(express.json());
 
 // Main router
