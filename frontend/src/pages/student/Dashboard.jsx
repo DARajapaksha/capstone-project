@@ -2,10 +2,18 @@ import React, { useState } from 'react';
 import { Calendar, CheckCircle, Clock, Award, User, Mail, CreditCard, FileText, ShieldCheck, ShieldAlert, Edit2, Plus, Zap } from 'lucide-react';
 import AvailableExams from './AvailableExams';
 import MyExamsTab from './MyExamsTab';
+import EditProfileModal from '../../components/student/EditProfileModal';
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [showAvailableExams, setShowAvailableExams] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  const [profile, setProfile] = useState({
+    fullName: 'John Doe',
+    email: 'john.doe@university.edu',
+    nic: '123456789V',
+    studentId: 'STU-2026-001',
+  });
 
   const tabs = [
     { id: 'overview', label: 'Overview' },
@@ -144,21 +152,25 @@ const Dashboard = () => {
           <div className="flex items-center justify-between gap-4 mb-6">
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center">
-                <User size={32} className="text-purple-600" />
+                <span className="text-lg font-bold text-purple-600">{profile.fullName.split(' ').map(name => name[0]).join('').slice(0, 2).toUpperCase()}</span>
               </div>
               <div>
-                <h3 className="text-xl font-semibold text-gray-900">John Doe</h3>
-                <p className="text-sm text-gray-500">Student ID: 12345678</p>
+                <h3 className="text-xl font-semibold text-gray-900">{profile.fullName}</h3>
+                <p className="text-sm text-gray-500">Student ID: {profile.studentId}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg font-medium hover:bg-slate-200 transition">
+              <button
+                onClick={() => setShowEditProfile(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg font-medium hover:bg-slate-200 transition"
+              >
                 <Edit2 size={16} />
                 Edit Profile
               </button>
-              <button 
+              <button
                 onClick={() => setShowAvailableExams(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-[#5B47FB] text-white rounded-lg font-medium hover:opacity-90 transition">
+                className="flex items-center gap-2 px-4 py-2 bg-[#5B47FB] text-white rounded-lg font-medium hover:opacity-90 transition"
+              >
                 <Plus size={16} />
                 Enroll in Exam
               </button>
@@ -171,7 +183,7 @@ const Dashboard = () => {
                 <Mail size={20} className="text-blue-600" />
                 <div>
                   <p className="text-xs text-gray-500 font-medium">Email</p>
-                  <p className="text-sm font-medium text-gray-900">john.doe@university.edu</p>
+                  <p className="text-sm font-medium text-gray-900">{profile.email}</p>
                 </div>
               </div>
             </div>
@@ -181,7 +193,7 @@ const Dashboard = () => {
                 <FileText size={20} className="text-orange-600" />
                 <div>
                   <p className="text-xs text-gray-500 font-medium">NIC</p>
-                  <p className="text-sm font-medium text-gray-900">123456789V</p>
+                  <p className="text-sm font-medium text-gray-900">{profile.nic}</p>
                 </div>
               </div>
             </div>
@@ -226,6 +238,14 @@ const Dashboard = () => {
 
         {renderContent()}
         </div>
+      )}
+      {showEditProfile && (
+        <EditProfileModal
+          open={showEditProfile}
+          onClose={() => setShowEditProfile(false)}
+          profile={profile}
+          onSave={(updatedProfile) => setProfile(updatedProfile)}
+        />
       )}
     </>
   );
