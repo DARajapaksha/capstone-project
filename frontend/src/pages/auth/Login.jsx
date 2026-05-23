@@ -9,13 +9,38 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
 
+
   const handleLogin = async (e) => {
     e.preventDefault();
+
+    const cleanEmail = email.trim();
+    if (!cleanEmail) {
+      alert('Please enter a valid email address.');
+      return;
+    }
+
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      navigate("/home");
+      const firebaseUser = await signInWithEmailAndPassword(auth, cleanEmail, password);
+      console.log('Firebase sign-in success:', firebaseUser.user.email);
+
+      const response = await fetch('http://localhost:3000/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail, password })
+      });
+
+      const data = await response.json();
+      console.log('Backend Response:', data);
+
+      if (response.ok && data.token) {
+        localStorage.setItem('token', data.token);
+      }
+
+      navigate('/student');
     } catch (error) {
-      alert("Invalid email or password");
+      console.error('Login Error:', error);
+      const message = error?.message || 'An error occurred during login. Please try again.';
+      alert(message);
     }
   };
 
@@ -53,8 +78,8 @@ const Login = () => {
                 <label className="block text-sm font-bold text-gray-700 ml-1">Password</label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-[#F3F6FF] border-none rounded-xl py-4 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required />
+                  <input type="password" placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-[#F3F6FF] border-none rounded-xl py-4 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required autoComplete="new-password" />
                 </div>
               </div>
 
