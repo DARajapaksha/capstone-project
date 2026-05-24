@@ -21,7 +21,14 @@ const MobileNav = ({ open, onClose }) => {
 
   const handleLogout = async () => {
     onClose();
-    await signOut(auth);
+    try {
+      await signOut(auth);
+    } catch (err) {
+      console.error('Firebase signOut error:', err);
+    }
+    localStorage.removeItem('token');
+    localStorage.removeItem('studentProfile');
+    localStorage.removeItem('studentAvatar');
     navigate('/login');
   };
 

@@ -1,25 +1,37 @@
-﻿import { auth } from "../firebase/firebase";
-import{ signOut } from "firebase/auth";
+import { auth } from "../firebase/firebase";
+import { signOut } from "firebase/auth";
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  ShieldCheck, Bell, Settings, LogOut, Edit3, Calendar, 
+import {
+  ShieldCheck, Bell, Settings, LogOut, Edit3, Calendar,
   CheckCircle2, Clock, ArrowRight, BookOpen, Activity, LayoutDashboard
 } from 'lucide-react';
+import { useProfile } from '../contexts/ProfileContext';
 
 const Home = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('Overview');
+  const { profile } = useProfile();
+
+  const initials = profile?.name
+    ? profile.name.split(' ').map(n => n[0]).join('').toUpperCase()
+    : 'AJ';
 
   const handleLogout = () => {
-    signOut(auth).then(() => {
-      navigate("/login");
-    });
+    try {
+      signOut(auth).catch((err) => console.error('signOut error:', err));
+    } catch (err) {
+      console.error('signOut catch error:', err);
+    }
+    localStorage.removeItem('token');
+    localStorage.removeItem('studentProfile');
+    localStorage.removeItem('studentAvatar');
+    navigate("/login");
   };
 
   return (
     <div className="min-h-screen bg-[#F3F6FF] font-sans text-[#1A1A1A] antialiased">
-      
+
       {/* TOP BAR - FIXED AS REQUESTED */}
       <header className="h-18 bg-white px-12 sticky top-0 z-50 flex items-center justify-between border-b border-gray-100">
         <div className="flex items-center gap-4">
@@ -49,20 +61,20 @@ const Home = () => {
       </header>
 
       <main className="max-w-[1600px] mx-auto p-12">
-        
+
         {/* PROFILE SECTION */}
         <section className="bg-white rounded-[50px] shadow-sm border border-white p-14 mb-10">
           <div className="flex flex-col lg:flex-row justify-between items-center gap-12 text-left">
             <div className="flex items-center gap-10">
-              <div className="w-32 h-32 bg-[#5D5FEF] rounded-[50%] flex items-center justify-center text-white font-black text-5xl shadow-2xl shadow-indigo-100">AJ</div>
+              <div className="w-32 h-32 bg-[#5D5FEF] rounded-[50%] flex items-center justify-center text-white font-black text-5xl shadow-2xl shadow-indigo-100">{initials}</div>
               <div>
-                <h1 className="text-3xl font-black mb-3 tracking-tighter uppercase">Alex Johnson</h1>
-                <p className="text-gray-400  text-lg">Student ID: STU-2026-001</p>
+                <h1 className="text-3xl font-black mb-3 tracking-tighter uppercase">{profile?.name || 'Alex Johnson'}</h1>
+                <p className="text-gray-400  text-lg">Student ID: {profile?.studentId || 'STU-2026-001'}</p>
                 <div className="flex gap-4 mt-8">
                   <div className="grid grid-cols-3 gap-x-16 gap-y-8 border-l-2 border-gray-50 pl-16">
-                    <InfoCol label="Email" val="alex.johnson@university.edu" />
-                    <InfoCol label="NIC Number" val="123456789V" />
-                    <InfoCol label="Enrolled Since" val="Jan 15, 2026" />
+                    <InfoCol label="Email" val={profile?.email || 'alex.johnson@university.edu'} />
+                    <InfoCol label="NIC Number" val={profile?.nic || '123456789V'} />
+                    <InfoCol label="Enrolled Since" val={profile?.enrolledSince || 'Jan 15, 2026'} />
                   </div>
                   <button className="bg-[#5D5FEF] text-white px-8 py-3.5 rounded-2xl text-sm font-black flex items-center gap-2 shadow-lg hover:opacity-90 transition-all">
                     <Edit3 size={18} /> Edit Profile
@@ -73,7 +85,7 @@ const Home = () => {
                 </div>
               </div>
             </div>
-            
+
           </div>
         </section>
 
@@ -87,15 +99,15 @@ const Home = () => {
 
         {/* TAB BAR */}
         <div className="bg-white px-8 py-4 rounded-[30px] flex items-center gap-4 shadow-sm border border-white mb-12">
-          <NavTab label="Overview" icon={<LayoutDashboard size={20}/>} active={activeTab === 'Overview'} onClick={() => setActiveTab('Overview')} />
-          <NavTab label="Verification" icon={<ShieldCheck size={20}/>} active={activeTab === 'Verification'} onClick={() => setActiveTab('Verification')} />
-          <NavTab label="My Exams" icon={<BookOpen size={20}/>} active={activeTab === 'My Exams'} onClick={() => setActiveTab('My Exams')} />
-          <NavTab label="Activity" icon={<Activity size={20}/>} active={activeTab === 'Activity'} onClick={() => setActiveTab('Activity')} />
+          <NavTab label="Overview" icon={<LayoutDashboard size={20} />} active={activeTab === 'Overview'} onClick={() => setActiveTab('Overview')} />
+          <NavTab label="Verification" icon={<ShieldCheck size={20} />} active={activeTab === 'Verification'} onClick={() => setActiveTab('Verification')} />
+          <NavTab label="My Exams" icon={<BookOpen size={20} />} active={activeTab === 'My Exams'} onClick={() => setActiveTab('My Exams')} />
+          <NavTab label="Activity" icon={<Activity size={20} />} active={activeTab === 'Activity'} onClick={() => setActiveTab('Activity')} />
         </div>
 
         {/* BOTTOM CONTENT GRID - MATCHING FIGMA RATIO */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-          
+
           {/* UPCOMING EXAMS (Wider) */}
           <div className="lg:col-span-2">
             <div className="flex justify-between items-center mb-6 pl-2">
@@ -116,9 +128,9 @@ const Home = () => {
             </div>
             <div className="bg-white rounded-[50px] p-10 border border-white shadow-sm flex-grow">
               <div className="space-y-12">
-                <ActivityItem icon={<ShieldCheck className="text-emerald-500" size={20}/>} title="Identity Verified" time="Mar 5, 11:00 AM" />
-                <ActivityItem icon={<CheckCircle2 className="text-indigo-500" size={20}/>} title="Enrolled MATH-401" time="Mar 4, 03:30 PM" />
-                <ActivityItem icon={<Clock className="text-blue-500" size={20}/>} title="Completed PHY-201" time="Feb 28, 11:00 AM" />
+                <ActivityItem icon={<ShieldCheck className="text-emerald-500" size={20} />} title="Identity Verified" time="Mar 5, 11:00 AM" />
+                <ActivityItem icon={<CheckCircle2 className="text-indigo-500" size={20} />} title="Enrolled MATH-401" time="Mar 4, 03:30 PM" />
+                <ActivityItem icon={<Clock className="text-blue-500" size={20} />} title="Completed PHY-201" time="Feb 28, 11:00 AM" />
               </div>
             </div>
           </div>
@@ -131,9 +143,8 @@ const Home = () => {
 // --- FIGMA COMPONENT HELPERS ---
 
 const NavTab = ({ label, icon, active, onClick }) => (
-  <button onClick={onClick} className={`flex items-center gap-3 px-10 py-3.5 rounded-[22px] font-black transition-all ${
-    active ? 'bg-[#5D5FEF] text-white shadow-lg shadow-indigo-100' : 'text-gray-400 hover:text-gray-600'
-  }`}>
+  <button onClick={onClick} className={`flex items-center gap-3 px-10 py-3.5 rounded-[22px] font-black transition-all ${active ? 'bg-[#5D5FEF] text-white shadow-lg shadow-indigo-100' : 'text-gray-400 hover:text-gray-600'
+    }`}>
     {icon} <span className="text-[12px] uppercase tracking-tighter">{label}</span>
   </button>
 );
@@ -159,8 +170,8 @@ const ExamCard = ({ title, code, date, time, status }) => (
         <p className="text-[10px] font-black text-[#5D5FEF] uppercase tracking-widest leading-none mb-1">{code}</p>
         <h4 className="text-lg font-black text-gray-800 leading-tight">{title}</h4>
         <div className="flex gap-4 text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-1">
-          <span className="flex items-center gap-1.5"><Calendar size={12}/> {date}</span>
-          <span className="flex items-center gap-1.5"><Clock size={12}/> {time}</span>
+          <span className="flex items-center gap-1.5"><Calendar size={12} /> {date}</span>
+          <span className="flex items-center gap-1.5"><Clock size={12} /> {time}</span>
         </div>
       </div>
     </div>

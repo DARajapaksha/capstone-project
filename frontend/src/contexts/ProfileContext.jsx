@@ -1,5 +1,4 @@
-import { createContext, useContext, useState } from 'react';
-import { auth } from '../firebase/firebase';
+import { createContext, useContext, useState, useEffect } from 'react';
 
 const DEFAULT_PROFILE = {
   name: 'Alex Johnson',
@@ -25,9 +24,42 @@ const ProfileContext = createContext(null);
 
 export const ProfileProvider = ({ children }) => {
   const [profile, setProfileState] = useState(() => {
-    const p = loadProfile();
-    return { ...p, email: auth.currentUser?.email || p.email };
+    return loadProfile();
   });
+
+  const refreshProfile = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    try {
+      const response = await fetch('http://localhost:3000/api/user/dashboard', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.profile) {
+          setProfileState(prev => {
+            const updated = {
+              ...prev,
+              name: data.profile.name || prev.name,
+              email: data.profile.email || prev.email,
+              nic: data.profile.nic || prev.nic
+            };
+            localStorage.setItem('studentProfile', JSON.stringify(updated));
+            return updated;
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Error refreshing profile:', err);
+    }
+  };
+
+  useEffect(() => {
+    refreshProfile();
+  }, []);
 
   const updateProfile = (updates) => {
     const updated = { ...profile, ...updates };
@@ -36,7 +68,7 @@ export const ProfileProvider = ({ children }) => {
   };
 
   return (
-    <ProfileContext.Provider value={{ profile, updateProfile }}>
+    <ProfileContext.Provider value={{ profile, updateProfile, refreshProfile }}>
       {children}
     </ProfileContext.Provider>
   );
