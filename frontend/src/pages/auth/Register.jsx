@@ -114,8 +114,8 @@ const Register = () => {
     try {
       const provider = new GoogleAuthProvider();
       // Enforce account selection popup so students can choose their official university account
-      provider.setCustomParameters({ prompt: 'select_account' }); 
-      
+      provider.setCustomParameters({ prompt: 'select_account' });
+
       const result = await signInWithPopup(auth, provider);
       const idToken = await result.user.getIdToken(); // Secure Google ID token
 
@@ -150,7 +150,7 @@ const Register = () => {
           <BrandSection />
         </div>
 
-        {/* RIGHT SIDE: Locked Width Card (MATCHES LOGIN EXACTLY) */}
+        {/* RIGHT SIDE */}
         <div className="flex-1 w-full max-w-md mx-auto lg:mx-0">
           <div className="bg-white rounded-[32px] shadow-2xl shadow-slate-200 p-6 md:p-8 border border-white">
             {showOtpModal ? (

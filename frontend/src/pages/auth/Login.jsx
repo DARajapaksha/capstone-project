@@ -148,7 +148,6 @@ const Login = () => {
   );
 };
 
-// Reusable Left Side to ensure 100% same size on both pages
 const BrandSection = () => (
   <>
     <div className="flex items-center gap-4">
@@ -162,7 +161,6 @@ const BrandSection = () => (
     </div>
 
     <div className="space-y-8">
-      {/* 1. AI Feature */}
       <div className="flex gap-5">
         <div className="bg-white p-3 rounded-xl self-start shadow-sm text-blue-500">
           <Cpu size={24} />
@@ -173,7 +171,6 @@ const BrandSection = () => (
         </div>
       </div>
 
-      {/* 2. Blockchain Feature (Was Missing) */}
       <div className="flex gap-5">
         <div className="bg-white p-3 rounded-xl self-start shadow-sm text-purple-500">
           <Lock size={24} />
@@ -184,7 +181,6 @@ const BrandSection = () => (
         </div>
       </div>
 
-      {/* 3. University Feature */}
       <div className="flex gap-5">
         <div className="bg-white p-3 rounded-xl self-start shadow-sm text-indigo-500">
           <GraduationCap size={24} />

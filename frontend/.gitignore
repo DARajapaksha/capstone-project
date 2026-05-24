@@ -1,6 +1,5 @@
-node_modules/
+cdnode_modules/
 .env
-guidliness.md
 
 # Hardhat files
 /cache
