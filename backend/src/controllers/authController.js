@@ -6,11 +6,11 @@ const crypto = require('crypto');
 
 const verifyOTPAndRegister = async (req, res) => {
   try {
-    const { email, otp, password, confirmPassword } = req.body;
-    console.log('Incoming verify & register data:', { email, otp });
+    const { email, otp, password, confirmPassword, name, studentId, nic } = req.body;
+    console.log('Incoming verify & register data:', { email, otp, name, studentId, nic });
 
-    if (!email || !otp || !password || !confirmPassword) {
-      return res.status(400).json({ error: 'Email, OTP, password, and confirm password are required' });
+    if (!email || !otp || !password || !confirmPassword || !name || !studentId || !nic) {
+      return res.status(400).json({ error: 'All fields (Email, OTP, Password, Name, Student ID, and NIC) are required' });
     }
 
     if (password !== confirmPassword) {
@@ -56,6 +56,9 @@ const verifyOTPAndRegister = async (req, res) => {
     await db.ref(`Users/${userRecord.uid}`).set({
       email: userRecord.email,
       password: hashedPassword,
+      name: name,
+      studentId: studentId,
+      nic: nic,
       createdAt: admin.database.ServerValue.TIMESTAMP
     });
 
@@ -64,6 +67,9 @@ const verifyOTPAndRegister = async (req, res) => {
       user: {
         uid: userRecord.uid,
         email: userRecord.email,
+        name: name,
+        studentId: studentId,
+        nic: nic
       }
     });
   } catch (error) {
@@ -113,7 +119,7 @@ const login = async (req, res) => {
     const token = jwt.sign(
       { uid: userId, email: userData.email },
       process.env.JWT_SECRET || 'fallback_secret_key',
-      { expiresIn: '1h' }
+      { expiresIn: '7d' }
     );
 
     // Record login event in Audit_Log
@@ -191,7 +197,7 @@ const googleLogin = async (req, res) => {
     const token = jwt.sign(
       { uid: finalUid, email },
       process.env.JWT_SECRET || 'fallback_secret_key',
-      { expiresIn: '1h' }
+      { expiresIn: '7d' }
     );
 
     return res.status(200).json({ message: 'Google authentication successful', token });

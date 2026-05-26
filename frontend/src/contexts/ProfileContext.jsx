@@ -1,11 +1,11 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 
 const DEFAULT_PROFILE = {
-  name: 'Alex Johnson',
-  studentId: 'STU-2026-001',
-  email: 'alex.johnson@university.edu',
-  nic: '123456789V',
-  enrolledSince: 'January 15, 2026',
+  name: '',
+  studentId: '',
+  email: '',
+  nic: '',
+  enrolledSince: '',
   department: 'Faculty of Computing',
   phone: '+94 77 123 4567',
   avatar: null,
@@ -20,12 +20,21 @@ function loadProfile() {
   }
 }
 
+function safeSetItem(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch (err) {
+    console.warn(`Failed to write to localStorage for key "${key}":`, err);
+  }
+}
+
 const ProfileContext = createContext(null);
 
 export const ProfileProvider = ({ children }) => {
   const [profile, setProfileState] = useState(() => {
     return loadProfile();
   });
+  const [editModalOpen, setEditModalOpen] = useState(false);
 
   const refreshProfile = async () => {
     const token = localStorage.getItem('token');
@@ -45,11 +54,23 @@ export const ProfileProvider = ({ children }) => {
               ...prev,
               name: data.profile.name || prev.name,
               email: data.profile.email || prev.email,
-              nic: data.profile.nic || prev.nic
+              nic: data.profile.nic || prev.nic,
+              studentId: data.profile.studentId || prev.studentId,
+              avatar: data.profile.avatar || prev.avatar,
+              phone: data.profile.phone || prev.phone,
+              department: data.profile.department || prev.department,
+              enrolledSince: data.profile.enrolledSince || prev.enrolledSince
             };
-            localStorage.setItem('studentProfile', JSON.stringify(updated));
+            safeSetItem('studentProfile', JSON.stringify(updated));
             return updated;
           });
+        }
+      } else {
+        if (response.status === 401) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('studentProfile');
+          localStorage.removeItem('studentAvatar');
+          window.location.href = '/login';
         }
       }
     } catch (err) {
@@ -64,11 +85,11 @@ export const ProfileProvider = ({ children }) => {
   const updateProfile = (updates) => {
     const updated = { ...profile, ...updates };
     setProfileState(updated);
-    localStorage.setItem('studentProfile', JSON.stringify(updated));
+    safeSetItem('studentProfile', JSON.stringify(updated));
   };
 
   return (
-    <ProfileContext.Provider value={{ profile, updateProfile, refreshProfile }}>
+    <ProfileContext.Provider value={{ profile, updateProfile, refreshProfile, editModalOpen, setEditModalOpen }}>
       {children}
     </ProfileContext.Provider>
   );

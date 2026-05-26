@@ -3,7 +3,9 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase/firebase';
 import MobileNav from '../components/student/MobileNav';
-import NotificationsDrawer from '../components/student/NotificationsDrawer';
+import NotificationsDropdown from '../components/student/NotificationsDropdown';
+import SettingsDropdown from '../components/student/SettingsDropdown';
+import { useProfile } from '../contexts/ProfileContext';
 import { Bell, LogOut, Menu, ShieldCheck, Settings } from 'lucide-react';
 
 
@@ -11,7 +13,9 @@ import { Bell, LogOut, Menu, ShieldCheck, Settings } from 'lucide-react';
 const StudentLayout = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(2); // 2 unread initially
+  const { setEditModalOpen } = useProfile();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -49,14 +53,28 @@ const StudentLayout = () => {
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button onClick={() => setNotifOpen(true)} className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50" aria-label="Notifications">
+            <div className="flex items-center gap-2 relative">
+              <button onClick={() => setNotifOpen(!notifOpen)} className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50 cursor-pointer" aria-label="Notifications">
                 <Bell size={20} />
                 {unreadCount > 0 && <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full" />}
               </button>
-              <button onClick={() => navigate('/student/profile')} className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50" aria-label="Settings">
+              {notifOpen && (
+                <NotificationsDropdown
+                  onClose={() => setNotifOpen(false)}
+                  onUnreadChange={(count) => setUnreadCount(count)}
+                />
+              )}
+              <button onClick={() => setSettingsOpen(!settingsOpen)} className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50 cursor-pointer" aria-label="Settings">
                 <Settings size={20} />
               </button>
+              {settingsOpen && (
+                <SettingsDropdown
+                  onClose={() => setSettingsOpen(false)}
+                  onEditProfile={() => setEditModalOpen(true)}
+                  onOpenNotifications={() => setNotifOpen(true)}
+                  onLogout={handleLogout}
+                />
+              )}
               <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-xl hover:bg-indigo-700">
                 <LogOut size={20} />
                 Logout
@@ -69,11 +87,6 @@ const StudentLayout = () => {
         </div>
       </div>
       <MobileNav open={menuOpen} onClose={() => setMenuOpen(false)} />
-      <NotificationsDrawer
-        open={notifOpen}
-        onClose={() => setNotifOpen(false)}
-        onUnreadChange={(count) => setUnreadCount(count)}
-      />
     </div>
   );
 };

@@ -2,13 +2,16 @@ import { auth } from "../../firebase/firebase";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { useState } from "react";
 import { Link, useNavigate } from 'react-router-dom';
-import { Shield, Mail, Lock, KeyRound, Cpu, GraduationCap } from 'lucide-react';
+import { Shield, Mail, Lock, KeyRound, Cpu, GraduationCap, User, CreditCard } from 'lucide-react';
 import { useProfile } from "../../contexts/ProfileContext";
 
 const Register = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [name, setName] = useState("");
+  const [studentId, setStudentId] = useState("");
+  const [nic, setNic] = useState("");
   const [otp, setOtp] = useState("");
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -18,15 +21,18 @@ const Register = () => {
   const handleRegister = async (e) => {
     e.preventDefault();
 
-    if (password !== confirmPassword) {
-      alert("Passwords do not match! Please check again.");
+    const cleanName = name.trim();
+    const cleanStudentId = studentId.trim();
+    const cleanNic = nic.trim();
+    const cleanEmail = email.trim();
+
+    if (!cleanName || !cleanStudentId || !cleanNic || !cleanEmail || !password || !confirmPassword) {
+      alert("Please fill in all registration fields.");
       return;
     }
 
-    const cleanEmail = email.trim();
-
-    if (!cleanEmail) {
-      alert("Please enter an email address");
+    if (password !== confirmPassword) {
+      alert("Passwords do not match! Please check again.");
       return;
     }
 
@@ -86,6 +92,9 @@ const Register = () => {
           otp: cleanOtp,
           password,
           confirmPassword,
+          name: name.trim(),
+          studentId: studentId.trim(),
+          nic: nic.trim()
         }),
       });
 
@@ -96,6 +105,9 @@ const Register = () => {
         setEmail("");
         setPassword("");
         setConfirmPassword("");
+        setName("");
+        setStudentId("");
+        setNic("");
         setOtp("");
         setShowOtpModal(false);
         navigate("/login");
@@ -151,7 +163,7 @@ const Register = () => {
         </div>
 
         {/* RIGHT SIDE */}
-        <div className="flex-1 w-full max-w-md mx-auto lg:mx-0">
+        <div className="flex-1 w-full max-w-xl mx-auto lg:mx-0">
           <div className="bg-white rounded-[32px] shadow-2xl shadow-slate-200 p-6 md:p-8 border border-white">
             {showOtpModal ? (
               <div className="space-y-6">
@@ -206,34 +218,63 @@ const Register = () => {
                 </div>
 
                 <form className="space-y-4 text-left" onSubmit={handleRegister} autoComplete="off">
-                  <div className="space-y-1">
-                    <label className="block text-sm font-bold text-gray-700 ml-1">Email Address</label>
-                    <div className="relative">
-                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                      <input type="email" placeholder="example@gmail.com" value={email} onChange={(e) => setEmail(e.target.value)}
-                        className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required autoComplete="off" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="block text-sm font-bold text-gray-700 ml-1">Full Name</label>
+                      <div className="relative">
+                        <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                        <input type="text" placeholder="John Doe" value={name} onChange={(e) => setName(e.target.value)}
+                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required autoComplete="off" />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-sm font-bold text-gray-700 ml-1">Email Address</label>
+                      <div className="relative">
+                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                        <input type="email" placeholder="example@gmail.com" value={email} onChange={(e) => setEmail(e.target.value)}
+                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required autoComplete="off" />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-sm font-bold text-gray-700 ml-1">Student ID</label>
+                      <div className="relative">
+                        <GraduationCap className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                        <input type="text" placeholder="STU-2026-001" value={studentId} onChange={(e) => setStudentId(e.target.value)}
+                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required autoComplete="off" />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-sm font-bold text-gray-700 ml-1">NIC Number</label>
+                      <div className="relative">
+                        <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                        <input type="text" placeholder="123456789V" value={nic} onChange={(e) => setNic(e.target.value)}
+                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required autoComplete="off" />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-sm font-bold text-gray-700 ml-1">Password</label>
+                      <div className="relative">
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                        <input type="password" placeholder="Enter password" value={password} onChange={(e) => setPassword(e.target.value)}
+                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required autoComplete="new-password" />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-sm font-bold text-gray-700 ml-1">Confirm Password</label>
+                      <div className="relative">
+                        <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                        <input type="password" placeholder="Confirm password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
+                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required autoComplete="new-password" />
+                      </div>
                     </div>
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="block text-sm font-bold text-gray-700 ml-1">Password</label>
-                    <div className="relative">
-                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                      <input type="password" placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)}
-                        className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required autoComplete="new-password" />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block text-sm font-bold text-gray-700 ml-1">Confirm Password</label>
-                    <div className="relative">
-                      <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                      <input type="password" placeholder="Enter your password again" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
-                        className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required autoComplete="new-password" />
-                    </div>
-                  </div>
-
-                  <button type="submit" disabled={loading} className="w-full bg-[#5D5FEF] hover:bg-[#4B4DDB] text-white font-bold py-3.5 rounded-xl shadow-lg transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                  <button type="submit" disabled={loading} className="w-full bg-[#5D5FEF] hover:bg-[#4B4DDB] text-white font-bold py-3.5 rounded-xl shadow-lg transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed mt-4">
                     {loading ? "Sending Code..." : "Create Account"}
                   </button>
                 </form>

@@ -23,7 +23,8 @@ app.use(cors({
   },
   credentials: true
 })); // Allows your frontend to talk to your backend.
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Main router
 app.use('/api', routes);
