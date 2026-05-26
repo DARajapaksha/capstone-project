@@ -18,3 +18,11 @@ ignition/deployments/chain-31337
 
 # Firebase Secrets
 serviceAccountKey.json
+
+# Python / AI Service
+venv/
+__pycache__/
+*.pyc
+*.pyo
+ai-service/venv/
+ai-service/__pycache__/
