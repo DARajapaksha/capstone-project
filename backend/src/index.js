@@ -5,8 +5,8 @@ const routes = require('./routes');
 
 const app = express();
 
-// Allowed origins — trims trailing slashes so http://localhost:5173/ == http://localhost:5173
-const ALLOWED_ORIGINS = (process.env.CORS_ORIGIN || 'http://localhost:5173')
+// Allowed origins — trims trailing slashes so http://localhost:3000/ == http://localhost:3000
+const ALLOWED_ORIGINS = (process.env.CORS_ORIGIN || 'http://localhost:3000,http://localhost:3001')
   .split(',')
   .map(o => o.trim().replace(/\/$/, ''));
 
