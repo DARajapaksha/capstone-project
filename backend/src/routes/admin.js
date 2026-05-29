@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { adminLogin, getAllVerifications, updateVerificationStatus, updateAdminProfile, getAllStudents, getAllAudits, getAllVerifiers } = require('../controllers/adminController');
+const { adminLogin, getAllVerifications, updateVerificationStatus, updateAdminProfile, getAllStudents, getAllAudits, getAllVerifiers, updateStudentVerificationStatus } = require('../controllers/adminController');
 // Assuming there might be an authMiddleware in the future, it would be added here like:
 // const authMiddleware = require('../middlewares/authMiddleware');
 
@@ -18,6 +18,8 @@ router.put('/profile/:id', updateAdminProfile);
 
 // Get all students
 router.get('/students', getAllStudents);
+
+router.put('/students/:id/verify', updateStudentVerificationStatus);
 
 // Get all audits
 router.get('/audits', getAllAudits);

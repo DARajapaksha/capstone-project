@@ -265,6 +265,50 @@ const getAllVerifiers = async (req, res) => {
   }
 };
 
+const updateStudentVerificationStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { verificationStatus } = req.body;
+    if (!id) {
+      return res.status(400).json({ error: 'Student ID is required' });
+    }
+    if (!verificationStatus) {
+      return res.status(400).json({ error: 'verificationStatus is required' });
+    }
+
+    const db = admin.database();
+    const studentRef = db.ref(`Users/${id}`);
+    
+    const snapshot = await studentRef.once('value');
+    if (!snapshot.exists()) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+
+    const isVerified = verificationStatus === 'Verified';
+
+    // Update student verification status
+    await studentRef.update({
+      isVerified: isVerified,
+      verificationStatus: verificationStatus,
+      verifiedAt: isVerified ? admin.database.ServerValue.TIMESTAMP : null
+    });
+
+    // Add entry to Audit_Log
+    const auditLogRef = db.ref('Audit_Log');
+    await auditLogRef.push({
+      userId: req.user ? (req.user.uid || req.user.userId) : 'admin',
+      event: `Manual Student Status: ${verificationStatus}`,
+      timestamp: admin.database.ServerValue.TIMESTAMP,
+      details: { studentId: id, newStatus: verificationStatus }
+    });
+
+    return res.status(200).json({ message: 'Student verification status updated successfully' });
+  } catch (error) {
+    console.error('Error updating student verification status:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
 module.exports = {
   adminLogin,
   getAllVerifications,
@@ -272,5 +316,6 @@ module.exports = {
   updateAdminProfile,
   getAllStudents,
   getAllAudits,
-  getAllVerifiers
+  getAllVerifiers,
+  updateStudentVerificationStatus
 };
