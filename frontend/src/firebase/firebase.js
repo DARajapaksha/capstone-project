@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
+import { getDatabase } from "firebase/database";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -8,9 +9,12 @@ const firebaseConfig = {
   projectId: "identity-verification-sy-dd573",
   storageBucket: "identity-verification-sy-dd573.firebasestorage.app",
   messagingSenderId: "1008215164215",
-  appId: "1:1008215164215:web:20ffadf8ac74c9869646b2"
+  appId: "1:1008215164215:web:20ffadf8ac74c9869646b2",
+  databaseURL: "https://identity-verification-sy-dd573-default-rtdb.asia-southeast1.firebasedatabase.app"
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+export const db = getDatabase(app);
+

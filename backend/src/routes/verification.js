@@ -18,4 +18,10 @@ router.post(
   verificationController.uploadVerificationImages
 );
 
+router.post(
+  '/result',
+  authMiddleware,
+  verificationController.submitVerificationResult
+);
+
 module.exports = router;

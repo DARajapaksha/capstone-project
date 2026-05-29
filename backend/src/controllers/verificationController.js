@@ -76,6 +76,60 @@ const uploadVerificationImages = async (req, res) => {
   }
 };
 
+const submitVerificationResult = async (req, res) => {
+  try {
+    const userId = req.user.uid || req.user.userId;
+    const { status, score, examId, examCode, hash } = req.body;
+    const db = admin.database();
+
+    if (status === 'success') {
+      const verReqRef = db.ref('Verification_Requests');
+      const newReqRef = verReqRef.push();
+      
+      await newReqRef.set({
+        studentId: userId,
+        status: 'Approved',
+        timestamp: admin.database.ServerValue.TIMESTAMP,
+        score: score,
+        examId: examId || null,
+        examCode: examCode || 'Unknown',
+        blockchainTx: hash,
+        event: 'Verification Issued',
+        ip: req.ip || '192.168.1.1',
+        type: 'Verification'
+      });
+      
+      if (examId) {
+        await db.ref(`Enrollments/${userId}/${examId}`).update({
+          verificationStatus: 'verified',
+          verifiedAt: admin.database.ServerValue.TIMESTAMP
+        });
+      }
+      
+      await db.ref('Audit_Log').push({
+        userId: userId,
+        event: 'Identity Verification Successful',
+        timestamp: admin.database.ServerValue.TIMESTAMP,
+        details: { requestId: newReqRef.key, txHash: hash }
+      });
+
+      return res.status(200).json({ message: 'Verification synced successfully', requestId: newReqRef.key });
+    } else {
+      await db.ref('Audit_Log').push({
+        userId: userId,
+        event: 'Identity Verification Failed',
+        timestamp: admin.database.ServerValue.TIMESTAMP,
+        details: { reason: status }
+      });
+      return res.status(200).json({ message: 'Failed verification logged' });
+    }
+  } catch (error) {
+    console.error('Error submitting verification result:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
 module.exports = {
-  uploadVerificationImages
+  uploadVerificationImages,
+  submitVerificationResult
 };

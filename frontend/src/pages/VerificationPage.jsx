@@ -1,11 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Upload, Camera as CameraIcon, Eye, Brain, ShieldCheck, ArrowRight, Check, CheckCircle, RefreshCw, XCircle, Clock, Copy, FileText, Home, AlertCircle } from 'lucide-react';
 import packageInfo from '../../package.json';
+import { getAuth } from 'firebase/auth';
+import { ref, push, set, serverTimestamp, update } from 'firebase/database';
+import { db } from '../firebase/firebase';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 
 export default function VerificationPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { examCode = 'Selected Exam', examId } = location.state || {};
+  
   const [currentStep, setCurrentStep] = useState(1);
 
   const [selectedImage, setSelectedImage] = useState(null);
@@ -108,7 +116,7 @@ export default function VerificationPage() {
     setIsProcessing(true);
     
     // Simulate a 3-second backend AI processing request
-    setTimeout(() => {
+    setTimeout(async () => {
       setIsProcessing(false);
       
       // Randomly pick an outcome to demonstrate the UI (Success, Failed, or Manual Review)
@@ -125,13 +133,40 @@ export default function VerificationPage() {
       const now = new Date();
       const dateString = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       const timeString = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      // Generate a properly-formatted 64-char mock transaction hash (Ethereum-compatible format)
+      const mockHash = () => '0x' + Array.from({length: 64}, () => Math.floor(Math.random() * 16).toString(16)).join('');
+      const hash = randomOutcome === 'success' ? mockHash() : null;
 
       setVerificationResult({
         status: randomOutcome,
         score: score,
         date: `${dateString}, ${timeString}`,
-        hash: randomOutcome === 'success' ? '0x' + Math.random().toString(16).substr(2, 40) : null
+        hash: hash
       });
+      
+      const auth = getAuth();
+      const user = auth.currentUser;
+      if (user) {
+        try {
+          const token = await user.getIdToken();
+          await fetch(`http://localhost:5000/api/verification/result`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              status: randomOutcome,
+              score: score,
+              examId: examId || null,
+              examCode: examCode,
+              hash: hash
+            })
+          });
+        } catch (err) {
+          console.error("Error submitting verification result:", err);
+        }
+      }
 
       nextStep(); // Move to Step 5
     }, 3000);
@@ -143,6 +178,58 @@ export default function VerificationPage() {
     setSelfieImage(null);
     setVerificationResult(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  
+  const downloadCertificate = () => {
+    const pdf = new jsPDF({
+      orientation: 'landscape',
+      unit: 'px',
+      format: [600, 400]
+    });
+    
+    // Background
+    pdf.setFillColor(250, 252, 255);
+    pdf.rect(0, 0, 600, 400, 'F');
+    
+    // Border
+    pdf.setDrawColor(99, 102, 241);
+    pdf.setLineWidth(4);
+    pdf.rect(20, 20, 560, 360, 'S');
+
+    // Title
+    pdf.setTextColor(30, 41, 59);
+    pdf.setFontSize(24);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Identity Verification Certificate', 300, 70, { align: 'center' });
+
+    // Subtitle
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(100, 116, 139);
+    pdf.text(`Exam: ${examCode}`, 300, 100, { align: 'center' });
+
+    // Status
+    pdf.setTextColor(21, 128, 61);
+    pdf.setFontSize(18);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('STATUS: VERIFIED', 300, 160, { align: 'center' });
+
+    // Details
+    pdf.setTextColor(71, 85, 105);
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`Date & Time: ${verificationResult?.date}`, 300, 220, { align: 'center' });
+    pdf.text(`Face Match Score: ${verificationResult?.score}%`, 300, 245, { align: 'center' });
+    pdf.text(`Liveness Detection: PASSED`, 300, 270, { align: 'center' });
+
+    // Hash
+    pdf.setFontSize(10);
+    pdf.setTextColor(148, 163, 184);
+    pdf.text(`Blockchain TX Hash:`, 300, 320, { align: 'center' });
+    pdf.setFont('courier', 'normal');
+    pdf.text(`${verificationResult?.hash}`, 300, 340, { align: 'center' });
+
+    pdf.save(`${examCode}-Certificate.pdf`);
   };
 
   // --- RENDER HELPERS ---
@@ -170,7 +257,7 @@ export default function VerificationPage() {
           </button>
           <div className="md:ml-4">
             <h1 className="text-2xl font-bold text-slate-900">Identity Verification</h1>
-            <p className="text-slate-500 text-sm">Verifying identity for exam: <span className="font-semibold text-slate-700">MATH-401</span></p>
+            <p className="text-slate-500 text-sm">Verifying identity for exam: <span className="font-semibold text-slate-700">{examCode}</span></p>
           </div>
         </div>
 
@@ -387,7 +474,7 @@ export default function VerificationPage() {
 
         {/* STEP 5: VERIFICATION RESULT CARD */}
         {currentStep === 5 && verificationResult && (
-          <div className="bg-white rounded-2xl p-6 md:p-10 shadow-sm border border-slate-100 mb-6 flex flex-col items-center">
+          <div id="certificate-content" className="bg-white rounded-2xl p-6 md:p-10 shadow-sm border border-slate-100 mb-6 flex flex-col items-center">
             
             {/* Dynamic Status Icon */}
             <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 shadow-sm border-4 border-white ${
@@ -408,7 +495,7 @@ export default function VerificationPage() {
             </h2>
             
             <p className="text-slate-500 text-center max-w-md mb-8">
-              {verificationResult.status === 'success' && `Your identity has been automatically verified for exam MATH-401. AI confidence score: ${verificationResult.score}%`}
+              {verificationResult.status === 'success' && `Your identity has been automatically verified for exam ${examCode}. AI confidence score: ${verificationResult.score}%`}
               {verificationResult.status === 'failed' && `AI verification failed due to low confidence score (${verificationResult.score}%). Please ensure your ID and selfie are clear and try again.`}
               {verificationResult.status === 'review' && `AI detected some uncertainties (confidence: ${verificationResult.score}%). Your case has been flagged for manual review by our team. You'll be notified within 24 hours.`}
             </p>
@@ -465,7 +552,7 @@ export default function VerificationPage() {
                   verificationResult.status === 'failed' ? 'text-rose-700' : 
                   'text-amber-700'
                 }`}>
-                  {verificationResult.status === 'success' && "You're now verified for exam MATH-401 and can proceed with taking the exam"}
+                  {verificationResult.status === 'success' && `You're now verified for exam ${examCode} and can proceed with taking the exam`}
                   {verificationResult.status === 'failed' && "The verification failed due to low match confidence. Please ensure good lighting and clear photos"}
                   {verificationResult.status === 'review' && "A verification specialist will review your submission. Check your email for updates"}
                 </p>
@@ -476,7 +563,7 @@ export default function VerificationPage() {
             <div className="w-full max-w-md flex flex-col gap-3">
               {verificationResult.status === 'success' && (
                 <>
-                  <button className="w-full py-3.5 bg-white border border-slate-300 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-colors shadow-sm flex items-center justify-center gap-2">
+                  <button onClick={downloadCertificate} className="w-full py-3.5 bg-white border border-slate-300 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-colors shadow-sm flex items-center justify-center gap-2">
                     <FileText className="w-4 h-4" /> Download Certificate
                   </button>
                   <button onClick={() => navigate('/student')} className="w-full py-3.5 bg-indigo-500 text-white font-medium rounded-xl hover:bg-indigo-600 transition-colors shadow-sm flex items-center justify-center gap-2">

@@ -21,7 +21,7 @@ const Login = () => {
       const idToken = await result.user.getIdToken(); // This is a secure Google ID token
 
       // Send this Google Token to your custom Node.js Backend to verify it
-      const response = await fetch('http://localhost:3000/api/auth/google-login', {
+      const response = await fetch(`http://${window.location.hostname}:5000/api/auth/google-login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idToken, isRegister: false })
@@ -52,7 +52,7 @@ const Login = () => {
     }
 
     try {
-      const response = await fetch('http://localhost:3000/api/auth/login', {
+      const response = await fetch(`http://${window.location.hostname}:5000/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: cleanEmail, password })
@@ -63,6 +63,15 @@ const Login = () => {
 
       if (response.ok && data.token) {
         localStorage.setItem('token', data.token);
+        
+        // Ensure Firebase Auth on the frontend is also signed in, 
+        // so that Firebase Realtime Database Security Rules (auth != null) will pass.
+        try {
+          await signInWithEmailAndPassword(auth, cleanEmail, password);
+        } catch (fbError) {
+          console.error("Firebase frontend sign-in failed, but backend succeeded. Db rules might fail.", fbError);
+        }
+
         await refreshProfile();
         navigate('/student');
       } else {

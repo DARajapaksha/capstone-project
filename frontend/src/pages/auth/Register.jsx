@@ -1,6 +1,6 @@
 import { auth } from "../../firebase/firebase";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from 'react-router-dom';
 import { Shield, Mail, Lock, KeyRound, Cpu, GraduationCap, User, CreditCard } from 'lucide-react';
 import { useProfile } from "../../contexts/ProfileContext";
@@ -15,11 +15,22 @@ const Register = () => {
   const [otp, setOtp] = useState("");
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [countdown, setCountdown] = useState(60);
   const navigate = useNavigate();
   const { refreshProfile } = useProfile();
 
+  useEffect(() => {
+    let timer;
+    if (showOtpModal && countdown > 0) {
+      timer = setInterval(() => {
+        setCountdown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [showOtpModal, countdown]);
+
   const handleRegister = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
 
     const cleanName = name.trim();
     const cleanStudentId = studentId.trim();
@@ -43,7 +54,7 @@ const Register = () => {
 
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:3000/api/auth/send-otp", {
+      const response = await fetch(`http://${window.location.hostname}:5000/api/auth/send-otp`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -56,8 +67,9 @@ const Register = () => {
       const data = await response.json();
 
       if (response.ok) {
-        alert("Verification code sent to your Gmail address! Please check your inbox.");
+        alert("Verification code sent to your Gmail address! Please check your inbox (and spam folder).");
         setShowOtpModal(true);
+        setCountdown(60); // Reset timer when successfully sent
       } else {
         alert(data.error || "Failed to send OTP");
       }
@@ -82,7 +94,7 @@ const Register = () => {
 
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:3000/api/auth/verify-otp", {
+      const response = await fetch(`http://${window.location.hostname}:5000/api/auth/verify-otp`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -132,7 +144,7 @@ const Register = () => {
       const idToken = await result.user.getIdToken(); // Secure Google ID token
 
       // Send this Google Token to your custom Node.js Backend to verify/register it
-      const response = await fetch('http://localhost:3000/api/auth/google-login', {
+      const response = await fetch(`http://${window.location.hostname}:5000/api/auth/google-login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idToken, isRegister: true })
@@ -197,6 +209,18 @@ const Register = () => {
                   >
                     {loading ? "Verifying..." : "Verify & Create Account"}
                   </button>
+
+                  <div className="text-center mt-4 pb-2">
+                    <p className="text-sm text-gray-500 mb-2">Didn't receive the code?</p>
+                    <button
+                      type="button"
+                      disabled={countdown > 0 || loading}
+                      onClick={handleRegister}
+                      className="text-[#5D5FEF] font-bold text-sm disabled:text-gray-400 disabled:cursor-not-allowed hover:underline"
+                    >
+                      {countdown > 0 ? `Resend Code in ${countdown}s` : "Resend Code"}
+                    </button>
+                  </div>
 
                   <button
                     type="button"
