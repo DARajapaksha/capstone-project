@@ -114,6 +114,32 @@ const submitVerificationResult = async (req, res) => {
       });
 
       return res.status(200).json({ message: 'Verification synced successfully', requestId: newReqRef.key });
+    } else if (status === 'review') {
+      const verReqRef = db.ref('Verification_Requests');
+      const newReqRef = verReqRef.push();
+      
+      await newReqRef.set({
+        studentId: userId,
+        status: 'Pending',
+        timestamp: admin.database.ServerValue.TIMESTAMP,
+        score: score,
+        examId: examId || null,
+        examCode: examCode || 'Unknown',
+        event: 'Manual Review Requested',
+        ip: req.ip || '192.168.1.1',
+        type: 'Verification',
+        idImageUrl: 'https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=400&q=80',
+        selfieImageUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&q=80'
+      });
+      
+      await db.ref('Audit_Log').push({
+        userId: userId,
+        event: 'Manual Review Requested',
+        timestamp: admin.database.ServerValue.TIMESTAMP,
+        details: { requestId: newReqRef.key, reason: 'AI Confidence too low' }
+      });
+
+      return res.status(200).json({ message: 'Sent to manual review', requestId: newReqRef.key });
     } else {
       await db.ref('Audit_Log').push({
         userId: userId,

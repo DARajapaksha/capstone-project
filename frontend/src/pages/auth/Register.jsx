@@ -184,7 +184,7 @@ const Register = () => {
                   We've sent a 6-digit verification code to <span className="font-semibold text-gray-700">{email}</span>. Please enter it below to complete registration.
                 </p>
 
-                <form className="space-y-4 text-left" onSubmit={handleVerifyOTP} autoComplete="off">
+                <form className="space-y-4 text-left" onSubmit={handleVerifyOTP}>
                   <div className="space-y-1">
                     <label className="block text-sm font-bold text-gray-700 ml-1">Verification Code</label>
                     <div className="relative">
@@ -241,14 +241,14 @@ const Register = () => {
                   <button className="flex-1 py-3 rounded-xl text-sm font-bold bg-white shadow-sm text-gray-800">Register</button>
                 </div>
 
-                <form className="space-y-4 text-left" onSubmit={handleRegister} autoComplete="off">
+                <form className="space-y-4 text-left" onSubmit={handleRegister}>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="block text-sm font-bold text-gray-700 ml-1">Full Name</label>
                       <div className="relative">
                         <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                         <input type="text" placeholder="John Doe" value={name} onChange={(e) => setName(e.target.value)}
-                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required autoComplete="off" />
+                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required />
                       </div>
                     </div>
 
@@ -257,7 +257,7 @@ const Register = () => {
                       <div className="relative">
                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                         <input type="email" placeholder="example@gmail.com" value={email} onChange={(e) => setEmail(e.target.value)}
-                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required autoComplete="off" />
+                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required />
                       </div>
                     </div>
 
@@ -266,7 +266,7 @@ const Register = () => {
                       <div className="relative">
                         <GraduationCap className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                         <input type="text" placeholder="STU-2026-001" value={studentId} onChange={(e) => setStudentId(e.target.value)}
-                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required autoComplete="off" />
+                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required />
                       </div>
                     </div>
 
@@ -275,7 +275,7 @@ const Register = () => {
                       <div className="relative">
                         <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                         <input type="text" placeholder="123456789V" value={nic} onChange={(e) => setNic(e.target.value)}
-                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required autoComplete="off" />
+                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required />
                       </div>
                     </div>
 
@@ -284,7 +284,7 @@ const Register = () => {
                       <div className="relative">
                         <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                         <input type="password" placeholder="Enter password" value={password} onChange={(e) => setPassword(e.target.value)}
-                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required autoComplete="new-password" />
+                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required />
                       </div>
                     </div>
 
@@ -293,7 +293,7 @@ const Register = () => {
                       <div className="relative">
                         <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                         <input type="password" placeholder="Confirm password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
-                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required autoComplete="new-password" />
+                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required />
                       </div>
                     </div>
                   </div>

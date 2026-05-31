@@ -12,6 +12,7 @@ const AvailableExams = ({ onBack }) => {
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(null);
+  const [enrollments, setEnrollments] = useState({});
 
   // Real-time listener on Firebase /Exams node
   useEffect(() => {
@@ -48,6 +49,16 @@ const AvailableExams = ({ onBack }) => {
         console.error("Firebase read error (Exams):", error);
         setLoading(false);
         alert("Error loading exams from database. Check Firebase security rules.");
+      });
+
+      // Fetch user's enrollments
+      const enrollmentsRef = ref(db, `Enrollments/${user.uid}`);
+      onValue(enrollmentsRef, (enrollSnap) => {
+        if (enrollSnap.exists()) {
+          setEnrollments(enrollSnap.val());
+        } else {
+          setEnrollments({});
+        }
       });
     });
 
@@ -145,31 +156,71 @@ const AvailableExams = ({ onBack }) => {
       ) : (
         <div className="exams-grid">
           {filteredExams.length > 0 ? (
-            filteredExams.map((exam) => (
-              <div key={exam.id} className="exam-card">
-                <div className="exam-card-header">
-                  <span className="course-code-badge">{exam.courseCode}</span>
-                  <span className={`status-pill ${exam.status === 'Full' ? 'full' : exam.status === 'Cancelled' ? 'cancelled' : 'open'}`}>
-                    {exam.status?.toUpperCase()}
-                  </span>
+            filteredExams.map((exam) => {
+              const myEnrollment = enrollments[exam.id];
+              const isEnrolled = !!myEnrollment;
+              const statusVal = myEnrollment?.verificationStatus || 'pending';
+              const verified = isEnrolled && statusVal === 'verified';
+              const rejected = isEnrolled && statusVal === 'rejected';
+              const pending = isEnrolled && statusVal === 'pending';
+
+              let buttonText = 'Enroll Now';
+              let buttonDisabled = exam.status !== 'Open' || enrolling === exam.id;
+              let buttonAction = () => handleEnroll(exam.id);
+              let buttonClass = `enroll-btn ${exam.status !== 'Open' ? 'enroll-btn-disabled' : ''}`;
+              
+              if (verified) {
+                buttonText = 'Verified';
+                buttonDisabled = true;
+                buttonClass = 'enroll-btn enroll-btn-verified bg-[#00C950] opacity-100 cursor-default';
+              } else if (rejected) {
+                buttonText = 'Retry Verification';
+                buttonDisabled = false;
+                buttonClass = 'enroll-btn enroll-btn-rejected bg-[#DC2626]';
+                buttonAction = () => navigate('/verification', { state: { examId: exam.id, examCode: exam.courseCode } });
+              } else if (pending) {
+                buttonText = 'Complete Verification';
+                buttonDisabled = false;
+                buttonClass = 'enroll-btn enroll-btn-pending bg-[#F0B100]';
+                buttonAction = () => navigate('/verification', { state: { examId: exam.id, examCode: exam.courseCode } });
+              } else if (enrolling === exam.id) {
+                buttonText = 'Enrolling...';
+              } else if (exam.status === 'Full') {
+                buttonText = 'Exam Full';
+              } else if (exam.status === 'Cancelled') {
+                buttonText = 'Cancelled';
+              }
+
+              return (
+                <div key={exam.id} className="exam-card">
+                  <div className="exam-card-header">
+                    <span className="course-code-badge">{exam.courseCode}</span>
+                    <span className={`status-pill ${exam.status === 'Full' ? 'full' : exam.status === 'Cancelled' ? 'cancelled' : 'open'}`}>
+                      {exam.status?.toUpperCase()}
+                    </span>
+                  </div>
+                  <h3 className="exam-card-title">{exam.courseName}</h3>
+                  <p className="exam-card-desc">{exam.description}</p>
+                  <div className="exam-card-details">
+                    <span><Calendar size={14} /> {exam.date}</span>
+                    <span><Clock size={14} /> {exam.time} &bull; {exam.duration}h</span>
+                    <span><MapPin size={14} /> {exam.proctoring}</span>
+                  </div>
+                  <button
+                    className={buttonClass}
+                    onClick={buttonAction}
+                    disabled={buttonDisabled}
+                  >
+                    {buttonText}
+                  </button>
+                  <p className="identity-note">
+                    {verified ? 'Identity verification successful' : 
+                     rejected ? 'Identity verification required (Previous attempt failed)' : 
+                     'Identity verification required'}
+                  </p>
                 </div>
-                <h3 className="exam-card-title">{exam.courseName}</h3>
-                <p className="exam-card-desc">{exam.description}</p>
-                <div className="exam-card-details">
-                  <span><Calendar size={14} /> {exam.date}</span>
-                  <span><Clock size={14} /> {exam.time} &bull; {exam.duration}h</span>
-                  <span><MapPin size={14} /> {exam.proctoring}</span>
-                </div>
-                <button
-                  className={`enroll-btn ${exam.status !== 'Open' ? 'enroll-btn-disabled' : ''}`}
-                  onClick={() => handleEnroll(exam.id)}
-                  disabled={exam.status !== 'Open' || enrolling === exam.id}
-                >
-                  {enrolling === exam.id ? 'Enrolling...' : exam.status === 'Full' ? 'Exam Full' : exam.status === 'Cancelled' ? 'Cancelled' : 'Enroll Now'}
-                </button>
-                <p className="identity-note">Identity verification required</p>
-              </div>
-            ))
+              );
+            })
           ) : (
             <div className="no-exams-message">
               <p>No exams found{searchQuery ? ' matching your search' : ''}.</p>

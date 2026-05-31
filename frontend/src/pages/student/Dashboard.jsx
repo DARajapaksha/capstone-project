@@ -54,18 +54,39 @@ const Dashboard = () => {
           const joined = examIds.map(examId => {
             const enrollment = enrollments[examId];
             const exam = allExams[examId] || {};
-            const verified = (enrollment.verificationStatus || 'pending') === 'verified';
+            const statusVal = enrollment.verificationStatus || 'pending';
+            const verified = statusVal === 'verified';
+            const rejected = statusVal === 'rejected';
+
+            let statusText = 'Verify Required';
+            let statusColor = 'bg-[#F0B100] text-white';
+            let borderColor = 'border-[#FFDF20]';
+            let Icon = ShieldAlert;
+
+            if (verified) {
+              statusText = 'Verified';
+              statusColor = 'bg-[#00C950] text-white';
+              borderColor = 'border-gray-200';
+              Icon = ShieldCheck;
+            } else if (rejected) {
+              statusText = 'Verification Rejected';
+              statusColor = 'bg-[#DC2626] text-white';
+              borderColor = 'border-[#DC2626]';
+              Icon = ShieldAlert;
+            }
+
             return {
               id: examId,
               title: exam.courseName || 'Unknown Exam',
               code: exam.courseCode || examId,
               date: exam.date || 'TBD',
               time: exam.time || 'TBD',
-              status: verified ? 'Verified' : 'Verify Required',
-              statusColor: verified ? 'bg-[#00C950] text-white' : 'bg-[#F0B100] text-white',
-              borderColor: verified ? 'border-gray-200' : 'border-[#FFDF20]',
-              statusIcon: verified ? ShieldCheck : ShieldAlert,
-              actionIcon: verified ? ShieldCheck : ShieldAlert,
+              status: statusText,
+              statusColor: statusColor,
+              borderColor: borderColor,
+              statusIcon: Icon,
+              actionIcon: Icon,
+              isVerified: verified
             };
           });
           joined.sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -101,7 +122,8 @@ const Dashboard = () => {
           .map(log => {
             const event = (log.event || '').toLowerCase();
             let icon = FileText, color = 'text-blue-600';
-            if (event.includes('verif') || event.includes('complet')) { icon = CheckCircle; color = 'text-green-600'; }
+            if (event.includes('fail') || event.includes('reject')) { icon = ShieldAlert; color = 'text-red-600'; }
+            else if (event.includes('verif') || event.includes('complet')) { icon = CheckCircle; color = 'text-green-600'; }
             else if (event.includes('profile')) { icon = User; color = 'text-purple-600'; }
             const ts = log.timestamp ? new Date(log.timestamp) : null;
             const dateStr = ts
@@ -262,13 +284,13 @@ const Dashboard = () => {
                       <Calendar size={16} className="text-gray-500" />
                       <span>{exam.date} • {exam.time}</span>
                     </div>
-                    {exam.status === 'Verify Required' && (
+                    {!exam.isVerified && (
                       <button
                         onClick={() => navigate('/verification', { state: { examId: exam.id, examCode: exam.code } })}
                         className="w-full px-4 py-2 bg-[#5B47FB] text-white rounded-lg font-medium hover:opacity-90 transition flex items-center justify-center gap-2"
                       >
                         <exam.actionIcon size={16} />
-                        Verify Identity for this Exam
+                        {exam.status === 'Verification Rejected' ? 'Retry Verification for this Exam' : 'Verify Identity for this Exam'}
                       </button>
                     )}
                   </div>

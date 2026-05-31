@@ -127,13 +127,13 @@ const Login = () => {
               <div className="flex-grow border-t border-gray-200"></div>
             </div>
 
-            <form className="space-y-4 text-left" onSubmit={handleLogin} autoComplete="off">
+            <form className="space-y-4 text-left" onSubmit={handleLogin}>
               <div className="space-y-1">
                 <label className="block text-sm font-bold text-gray-700 ml-1">Email Address</label>
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                   <input type="email" placeholder="Enter your email" value={email} onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required autoComplete="off" />
+                    className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required />
                 </div>
               </div>
 
@@ -142,7 +142,7 @@ const Login = () => {
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                   <input type="password" placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required autoComplete="new-password" />
+                    className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required />
                 </div>
               </div>
 
