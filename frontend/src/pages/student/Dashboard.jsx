@@ -51,9 +51,11 @@ const Dashboard = () => {
         unsubExams = onValue(examsRef, (examsSnap) => {
           setLoadingExams(false);
           const allExams = examsSnap.exists() ? examsSnap.val() : {};
-          const joined = examIds.map(examId => {
+          const joined = examIds
+            .filter(examId => allExams[examId])
+            .map(examId => {
             const enrollment = enrollments[examId];
-            const exam = allExams[examId] || {};
+            const exam = allExams[examId];
             const statusVal = enrollment.verificationStatus || 'pending';
             const verified = statusVal === 'verified';
             const rejected = statusVal === 'rejected';

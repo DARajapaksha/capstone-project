@@ -34,9 +34,11 @@ const MyExamsTab = () => {
         setLoading(false);
         const allExams = examsSnapshot.exists() ? examsSnapshot.val() : {};
 
-        const joined = examIds.map(examId => {
+        const joined = examIds
+          .filter(examId => allExams[examId])
+          .map(examId => {
           const enrollment = enrollments[examId];
-          const exam = allExams[examId] || {};
+          const exam = allExams[examId];
           return {
             id: examId,
             courseName: exam.courseName || 'Unknown Exam',
