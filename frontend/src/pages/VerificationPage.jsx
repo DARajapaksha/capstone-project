@@ -17,10 +17,21 @@ export default function VerificationPage() {
   const [currentStep, setCurrentStep] = useState(1);
 
   const [selectedImage, setSelectedImage] = useState(null);
+  const [idFile, setIdFile] = useState(null);
   
   // Camera States
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [selfieImage, setSelfieImage] = useState(null);
+
+  const base64ToBlob = (base64, mimeType) => {
+    const byteString = atob(base64.split(',')[1]);
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+    for (let i = 0; i < byteString.length; i++) {
+      ia[i] = byteString.charCodeAt(i);
+    }
+    return new Blob([ab], { type: mimeType });
+  };
   
   // Processing & Result States
   const [isProcessing, setIsProcessing] = useState(false);
@@ -59,6 +70,7 @@ export default function VerificationPage() {
   const handleImageUpload = (event) => {
     const file = event.target.files[0];
     if (file) {
+      setIdFile(file);
       setSelectedImage(URL.createObjectURL(file));
     }
   };
@@ -112,9 +124,33 @@ export default function VerificationPage() {
     if (currentStep > 1) setCurrentStep(currentStep - 1);
   };
 
-  const handleVerify = () => {
+  const handleVerify = async () => {
     setIsProcessing(true);
     
+    let reqId = null;
+    try {
+      const auth = getAuth();
+      const user = auth.currentUser;
+      if (user) {
+        const token = await user.getIdToken();
+        const formData = new FormData();
+        if (idFile) formData.append('id_image', idFile);
+        if (selfieImage) formData.append('selfie_image', base64ToBlob(selfieImage, 'image/jpeg'), 'selfie.jpg');
+        
+        const uploadRes = await fetch(`http://localhost:5000/api/verification/upload`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: formData
+        });
+        const uploadData = await uploadRes.json();
+        reqId = uploadData.requestId;
+      }
+    } catch (err) {
+      console.error("Error uploading images:", err);
+    }
+
     // Simulate a 3-second backend AI processing request
     setTimeout(async () => {
       setIsProcessing(false);
@@ -160,7 +196,8 @@ export default function VerificationPage() {
               score: score,
               examId: examId || null,
               examCode: examCode,
-              hash: hash
+              hash: hash,
+              requestId: reqId
             })
           });
         } catch (err) {
@@ -175,6 +212,7 @@ export default function VerificationPage() {
   const handleTryAgain = () => {
     setCurrentStep(1);
     setSelectedImage(null);
+    setIdFile(null);
     setSelfieImage(null);
     setVerificationResult(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
