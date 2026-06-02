@@ -26,3 +26,8 @@ __pycache__/
 *.pyo
 ai-service/venv/
 ai-service/__pycache__/
+
+# AI service test files
+ai-service/test_images/
+ai-service/test_b64.txt
+ai-service/test_payload.json
