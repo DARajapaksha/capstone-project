@@ -2,16 +2,19 @@ import { auth } from "../../firebase/firebase";
 import { signInWithEmailAndPassword, sendEmailVerification, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { useState } from "react";
 import { Link, useNavigate } from 'react-router-dom';
-import { Shield, Mail, Lock, Cpu, GraduationCap } from 'lucide-react';
+import { Shield, Mail, Lock, Cpu, GraduationCap, Loader2 } from 'lucide-react';
 import { useProfile } from "../../contexts/ProfileContext";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const navigate = useNavigate();
   const { refreshProfile } = useProfile();
 
   const handleGoogleLogin = async () => {
+    setGoogleLoading(true);
     try {
       const provider = new GoogleAuthProvider();
       // Enforce account selection popup so students can choose their official university account
@@ -38,6 +41,8 @@ const Login = () => {
     } catch (error) {
       console.error("Google authentication failed:", error);
       alert('Google authentication failed. Please try again.');
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -51,6 +56,7 @@ const Login = () => {
       return;
     }
 
+    setLoading(true);
     try {
       const response = await fetch(`http://${window.location.hostname}:5000/api/auth/login`, {
         method: 'POST',
@@ -81,6 +87,8 @@ const Login = () => {
       console.error('Login Error:', error);
       const message = error?.message || 'An error occurred during login. Please try again.';
       alert(message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -108,17 +116,22 @@ const Login = () => {
             <button
               type="button"
               onClick={handleGoogleLogin}
-              className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 text-gray-700 font-semibold py-3 px-4 rounded-xl border border-gray-200 shadow-sm transition-all duration-200 active:scale-[0.98] cursor-pointer mb-5"
+              disabled={googleLoading || loading}
+              className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 text-gray-700 font-semibold py-3 px-4 rounded-xl border border-gray-200 shadow-sm transition-all duration-200 active:scale-[0.98] cursor-pointer mb-5 disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              <svg className="w-5 h-5" viewBox="0 0 24 24" width="24" height="24" xmlns="http://www.w3.org/2000/svg">
-                <g transform="matrix(1, 0, 0, 1, 0, 0)">
-                  <path d="M21.35,11.1H12v2.7h5.38c-0.24,1.28 -0.96,2.37 -2.04,3.1v2.57h3.3c1.93,-1.78 3.04,-4.4 3.04,-7.47c0,-0.32 -0.03,-0.64 -0.08,-0.9Z" fill="#4285F4" />
-                  <path d="M12,20.6c2.43,0 4.47,-0.8 5.96,-2.2l-3.3,-2.57c-0.9,0.6 -2.07,0.97 -3.27,0.97c-2.33,0 -4.3,-1.57 -5,-3.69H3V15.7c1.48,2.94 4.5,4.9 8,4.9Z" fill="#34A853" />
-                  <path d="M7,13.1c-0.18,-0.54 -0.28,-1.11 -0.28,-1.7c0,-0.59 0.1,-1.16 0.28,-1.7V7.1H3V9.6C2.36,10.9 2,12.4 2,14c0,1.6 0.36,3.1 1,4.4L7,15.1c-0.18,-0.54 -0.28,-1.11 -0.28,-1.7Z" fill="#FBBC05" />
-                  <path d="M12,6.8c1.32,0 2.5,0.45 3.44,1.35l2.58,-2.58C16.46,4.09 14.43,3.4 12,3.4c-3.5,0 -6.52,1.96 -8,4.9L7,10.8c0.7,-2.12 2.67,-3.69 5,-3.69Z" fill="#EA4335" />
-                </g>
-              </svg>
-              <span>Continue with Google</span>
+              {googleLoading ? (
+                <Loader2 className="w-5 h-5 animate-spin text-gray-500" />
+              ) : (
+                <svg className="w-5 h-5" viewBox="0 0 24 24" width="24" height="24" xmlns="http://www.w3.org/2000/svg">
+                  <g transform="matrix(1, 0, 0, 1, 0, 0)">
+                    <path d="M21.35,11.1H12v2.7h5.38c-0.24,1.28 -0.96,2.37 -2.04,3.1v2.57h3.3c1.93,-1.78 3.04,-4.4 3.04,-7.47c0,-0.32 -0.03,-0.64 -0.08,-0.9Z" fill="#4285F4" />
+                    <path d="M12,20.6c2.43,0 4.47,-0.8 5.96,-2.2l-3.3,-2.57c-0.9,0.6 -2.07,0.97 -3.27,0.97c-2.33,0 -4.3,-1.57 -5,-3.69H3V15.7c1.48,2.94 4.5,4.9 8,4.9Z" fill="#34A853" />
+                    <path d="M7,13.1c-0.18,-0.54 -0.28,-1.11 -0.28,-1.7c0,-0.59 0.1,-1.16 0.28,-1.7V7.1H3V9.6C2.36,10.9 2,12.4 2,14c0,1.6 0.36,3.1 1,4.4L7,15.1c-0.18,-0.54 -0.28,-1.11 -0.28,-1.7Z" fill="#FBBC05" />
+                    <path d="M12,6.8c1.32,0 2.5,0.45 3.44,1.35l2.58,-2.58C16.46,4.09 14.43,3.4 12,3.4c-3.5,0 -6.52,1.96 -8,4.9L7,10.8c0.7,-2.12 2.67,-3.69 5,-3.69Z" fill="#EA4335" />
+                  </g>
+                </svg>
+              )}
+              <span>{googleLoading ? 'Connecting...' : 'Continue with Google'}</span>
             </button>
 
             <div className="flex items-center my-4">
@@ -146,8 +159,9 @@ const Login = () => {
                 </div>
               </div>
 
-              <button type="submit" className="w-full bg-[#5D5FEF] hover:bg-[#4B4DDB] text-white font-bold py-3.5 rounded-xl shadow-lg transition-all active:scale-[0.98]">
-                Sign In
+              <button type="submit" disabled={loading || googleLoading} className="w-full flex items-center justify-center gap-2 bg-[#5D5FEF] hover:bg-[#4B4DDB] text-white font-bold py-3.5 rounded-xl shadow-lg transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed">
+                {loading && <Loader2 className="w-5 h-5 animate-spin" />}
+                <span>{loading ? 'Signing In...' : 'Sign In'}</span>
               </button>
             </form>
           </div>

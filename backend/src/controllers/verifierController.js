@@ -54,6 +54,7 @@ const verifierLogin = async (req, res) => {
         employeeId: verifierUser.employeeId || '',
         role: verifierUser.role || 'verifier',
         createdAt: verifierUser.createdAt,
+        profilePicture: verifierUser.profilePicture || null,
       },
     });
   } catch (error) {
@@ -86,6 +87,7 @@ const getVerifierProfile = async (req, res) => {
         role: v.role || 'verifier',
         createdAt: v.createdAt,
         lastLogin: v.lastLogin || null,
+        profilePicture: v.profilePicture || null,
       },
     });
   } catch (error) {
@@ -98,7 +100,7 @@ const getVerifierProfile = async (req, res) => {
 const updateVerifierProfile = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, phone, department } = req.body;
+    const { name, phone, department, profilePicture } = req.body;
 
     const db = admin.database();
     const verifierRef = db.ref(`Verifiers/${id}`);
@@ -108,11 +110,17 @@ const updateVerifierProfile = async (req, res) => {
       return res.status(404).json({ error: 'Verifier not found' });
     }
 
-    await verifierRef.update({
+    const updates = {
       name: name || snapshot.val().name,
-      phone: phone || '',
-      department: department || '',
-    });
+      phone: phone !== undefined ? phone : snapshot.val().phone || '',
+      department: department !== undefined ? department : snapshot.val().department || '',
+    };
+    
+    if (profilePicture) {
+      updates.profilePicture = profilePicture;
+    }
+
+    await verifierRef.update(updates);
 
     const updated = (await verifierRef.once('value')).val();
     return res.status(200).json({
@@ -125,6 +133,7 @@ const updateVerifierProfile = async (req, res) => {
         department: updated.department || '',
         employeeId: updated.employeeId || '',
         role: updated.role || 'verifier',
+        profilePicture: updated.profilePicture || null,
       },
     });
   } catch (error) {
@@ -461,6 +470,47 @@ const deleteVerifier = async (req, res) => {
   }
 };
 
+// PUT /api/admin/verifiers/:id — update a verifier account
+const updateVerifier = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, email, department, employeeId, password } = req.body;
+    
+    const db = admin.database();
+    const verifierRef = db.ref(`Verifiers/${id}`);
+    
+    const snapshot = await verifierRef.once('value');
+    if (!snapshot.exists()) {
+      return res.status(404).json({ error: 'Verifier not found' });
+    }
+
+    const updates = {};
+    if (name !== undefined) updates.name = name;
+    if (email !== undefined) updates.email = email;
+    if (department !== undefined) updates.department = department;
+    if (employeeId !== undefined) updates.employeeId = employeeId;
+    
+    if (password) {
+      updates.password = await bcrypt.hash(password, 12);
+    }
+
+    await verifierRef.update(updates);
+
+    // Audit log
+    await db.ref('Audit_Log').push({
+      userId: req.user ? (req.user.id || req.user.uid) : 'admin',
+      event: 'Verifier Account Updated',
+      timestamp: admin.database.ServerValue.TIMESTAMP,
+      details: { verifierId: id, email: email || snapshot.val().email },
+    });
+
+    return res.status(200).json({ message: 'Verifier updated successfully' });
+  } catch (error) {
+    console.error('Error in updateVerifier:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
 module.exports = {
   verifierLogin,
   getVerifierProfile,
@@ -472,4 +522,5 @@ module.exports = {
   listVerifiers,
   createVerifier,
   deleteVerifier,
+  updateVerifier,
 };
