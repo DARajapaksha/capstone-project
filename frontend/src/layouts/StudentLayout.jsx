@@ -2,20 +2,17 @@ import { useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase/firebase';
-import MobileNav from '../components/student/MobileNav';
 import NotificationsDropdown from '../components/student/NotificationsDropdown';
 import SettingsDropdown from '../components/student/SettingsDropdown';
 import { useProfile } from '../contexts/ProfileContext';
-import { Bell, LogOut, Menu, ShieldCheck, Settings } from 'lucide-react';
+import { Bell, LogOut, ShieldCheck, Settings } from 'lucide-react';
 
 
 
 const StudentLayout = () => {
-  const [menuOpen, setMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(2); // 2 unread initially
-  const { setEditModalOpen } = useProfile();
+  const { setEditModalOpen, unreadCount } = useProfile();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -36,13 +33,6 @@ const StudentLayout = () => {
         <div className="px-4 py-4 sm:px-6 lg:px-8">
           <header className="relative -mx-4 sm:-mx-6 lg:-mx-8 flex items-center justify-between bg-white p-4 rounded-xl mb-6">
             <div className="flex items-center gap-4">
-              <button
-                onClick={() => setMenuOpen(true)}
-                className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50"
-                aria-label="Open menu"
-              >
-                <Menu className="h-5 w-5" />
-              </button>
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-sm">
                   <ShieldCheck size={24} />
@@ -61,7 +51,6 @@ const StudentLayout = () => {
               {notifOpen && (
                 <NotificationsDropdown
                   onClose={() => setNotifOpen(false)}
-                  onUnreadChange={(count) => setUnreadCount(count)}
                 />
               )}
               <button onClick={() => setSettingsOpen(!settingsOpen)} className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50 cursor-pointer" aria-label="Settings">
@@ -86,7 +75,6 @@ const StudentLayout = () => {
           </main>
         </div>
       </div>
-      <MobileNav open={menuOpen} onClose={() => setMenuOpen(false)} />
     </div>
   );
 };

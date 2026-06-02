@@ -1,62 +1,79 @@
-import React, { useState } from 'react';
+import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertCircle, CheckCircle, Clock, Download, Eye } from 'lucide-react';
+import { useProfile } from '../../contexts/ProfileContext';
 import './MyExamsTab.css';
 
 
+const parseDateSafe = (dateStr) => {
+  if (!dateStr) return new Date();
+  const parts = dateStr.trim().split('-');
+  if (parts.length === 3) {
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1; // 0-indexed month
+    const day = parseInt(parts[2], 10);
+    return new Date(year, month, day);
+  }
+  return new Date(dateStr);
+};
+
 const MyExamsTab = () => {
   const navigate = useNavigate();
-  const [exams] = useState([
+  const { enrolledExams, loadingDashboard, refreshProfile } = useProfile();
 
-    {
-      id: 1,
-      courseName: 'Advanced Mathematics Final',
-      courseCode: 'MATH-401',
-      date: 'March 15, 2026',
-      time: '10:00 AM - 12:00 PM',
-      duration: '120 min',
-      status: 'upcoming',
-      verificationStatus: 'required',
-      badge: 'Verify Required',
-      badgeColor: 'yellow',
-      verificationMessage: 'You must verify your identity before taking this exam',
-    },
-    {
-      id: 2,
-      courseName: 'Computer Science Midterm',
-      courseCode: 'CS-302',
-      date: 'March 20, 2026',
-      time: '2:00 PM - 4:00 PM',
-      duration: '120 min',
-      status: 'upcoming',
-      verificationStatus: 'verified',
-      badge: 'Verified',
-      badgeColor: 'green',
-      verifiedAt: 'March 5, 2026',
-    },
-    {
-      id: 3,
-      courseName: 'Physics Lab Exam',
-      courseCode: 'PHY-201',
-      date: 'February 28, 2026',
-      time: '9:00 AM - 11:00 AM',
-      duration: '120 min',
-      status: 'completed',
-      verificationStatus: 'verified',
-      badges: ['Verified'],
-      badgeColors: ['green'],
-      score: '92%',
-    },
-  ]);
+  const exams = useMemo(() => {
+    if (!enrolledExams) return [];
+    return enrolledExams.map(exam => {
+      const formattedDate = parseDateSafe(exam.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      return {
+        id: exam.id || exam.courseCode,
+        courseName: exam.courseName,
+        courseCode: exam.courseCode,
+        date: formattedDate,
+        time: exam.time,
+        duration: `${exam.duration * 60} min`,
+        status: exam.status || 'upcoming',
+        verificationStatus: exam.verificationStatus || 'required',
+        badge: exam.verificationStatus === 'verified' ? 'Verified' : 'Verify Required',
+        badgeColor: exam.verificationStatus === 'verified' ? 'green' : 'yellow',
+        verificationMessage: exam.verificationMessage || 'You must verify your identity before taking this exam',
+        verifiedAt: exam.verificationStatus === 'verified' ? 'Verified' : null
+      };
+    });
+  }, [enrolledExams]);
 
-  const handleVerifyIdentity = () => {
-    navigate('/verification');
+  const handleVerifyIdentity = (examId) => {
+    navigate('/verification', { state: { from: '/student', activeTab: 'my-exams' } });
   };
 
+  const handleCancelEnrollment = async (examId) => {
+    const confirmCancel = window.confirm('Are you sure you want to cancel enrollment?');
+    if (!confirmCancel) return;
 
-  const handleCancelEnrollment = (examId) => {
-    console.log('Cancel enrollment for exam:', examId);
-    alert('Are you sure you want to cancel enrollment?');
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await fetch('http://localhost:3000/api/user/cancel-exam', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ examId })
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        alert(data.message || 'Successfully cancelled enrollment');
+        refreshProfile(); // Refresh context profile data to update dashboard and My Exams list
+      } else {
+        alert(data.error || 'Failed to cancel enrollment');
+      }
+    } catch (err) {
+      console.error('Error cancelling enrollment:', err);
+      alert('An error occurred during cancellation');
+    }
   };
 
   const handleViewDetails = (examId) => {
@@ -68,6 +85,36 @@ const MyExamsTab = () => {
     console.log('Download certificate for exam:', examId);
     alert('Certificate download started');
   };
+
+  if (loadingDashboard) {
+    return <div className="my-exams-tab" style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>Loading exams...</div>;
+  }
+
+  if (exams.length === 0) {
+    return (
+      <div className="my-exams-tab">
+        <div className="no-exams-message" style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+          <p style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#64748b' }}>You haven't enrolled in any exams yet.</p>
+          <p className="no-exams-subtitle" style={{ color: '#94a3b8', marginTop: '0.5rem' }}>Browse available exams to get started.</p>
+          <button 
+            onClick={() => navigate('/student/available')}
+            style={{ 
+              marginTop: '1.5rem', 
+              padding: '0.6rem 1.5rem', 
+              background: '#5B47FB', 
+              color: '#fff', 
+              borderRadius: '0.75rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              border: 'none'
+            }}
+          >
+            Enroll in Exam
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="my-exams-tab">

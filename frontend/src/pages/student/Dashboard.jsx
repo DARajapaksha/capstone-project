@@ -1,17 +1,41 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useProfile } from '../../contexts/ProfileContext';
 
 
-import { Calendar, CheckCircle, Clock, Award, User, Mail, CreditCard, FileText, ShieldCheck, ShieldAlert, Edit2, Plus, Zap, X, Upload } from 'lucide-react';
+import { Calendar, CheckCircle, Clock, Award, User, Mail, CreditCard, FileText, ShieldCheck, ShieldAlert, Edit2, Plus, Zap, X, Upload, BookOpen, CheckCircle2 } from 'lucide-react';
 import AvailableExams from './AvailableExams';
 import MyExamsTab from './MyExamsTab';
 
+const parseDateSafe = (dateStr) => {
+  if (!dateStr) return new Date();
+  const parts = dateStr.trim().split('-');
+  if (parts.length === 3) {
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1; // 0-indexed month
+    const day = parseInt(parts[2], 10);
+    return new Date(year, month, day);
+  }
+  return new Date(dateStr);
+};
+
 const Dashboard = () => {
-  const [activeTab, setActiveTab] = useState('overview');
-  const [showAvailableExams, setShowAvailableExams] = useState(false);
   const navigate = useNavigate();
-  const { profile, updateProfile, editModalOpen, setEditModalOpen } = useProfile();
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'overview');
+  const [showAvailableExams, setShowAvailableExams] = useState(false);
+  const { 
+    profile, 
+    updateProfile, 
+    editModalOpen, 
+    setEditModalOpen,
+    activities: rawActivities,
+    upcomingExams,
+    enrolledExams,
+    stats,
+    verificationStatus,
+    refreshProfile
+  } = useProfile();
   const [savingProfile, setSavingProfile] = useState(false);
   const [editForm, setEditForm] = useState({ name: '', email: '', nic: '', studentId: '', avatar: '' });
   const fileInputRef = useRef(null);
@@ -19,6 +43,74 @@ const Dashboard = () => {
   const initials = profile?.name
     ? profile.name.split(' ').map(n => n[0]).join('').toUpperCase()
     : 'AJ';
+
+  const formatTimestamp = (ts) => {
+    if (!ts) return '';
+    const date = new Date(ts);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    }) + ' ' + date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
+  const getEventDetails = (event) => {
+    if (event && event.startsWith('Enrolled in')) {
+      return {
+        action: event,
+        icon: FileText,
+        color: 'text-blue-600'
+      };
+    }
+    switch (event) {
+      case 'login':
+        return {
+          action: 'Login Successful',
+          icon: User,
+          color: 'text-indigo-600'
+        };
+      case 'Profile Updated':
+        return {
+          action: 'Profile Updated',
+          icon: Edit2,
+          color: 'text-purple-600'
+        };
+      default:
+        return {
+          action: event || 'User Action',
+          icon: CheckCircle,
+          color: 'text-green-600'
+        };
+    }
+  };
+
+  const activities = React.useMemo(() => {
+    if (!rawActivities) return [];
+    const filtered = rawActivities.filter(item => item.event !== 'Images Uploaded');
+    return filtered.map(item => {
+      const details = getEventDetails(item.event);
+      return {
+        action: details.action,
+        date: formatTimestamp(item.timestamp),
+        icon: details.icon,
+        color: details.color
+      };
+    });
+  }, [rawActivities]);
+
+  useEffect(() => {
+    refreshProfile();
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (location.state?.activeTab) {
+      setActiveTab(location.state.activeTab);
+    }
+  }, [location.state?.activeTab]);
 
   useEffect(() => {
     if (editModalOpen) {
@@ -63,6 +155,7 @@ const Dashboard = () => {
       if (response.ok) {
         const data = await response.json();
         updateProfile(data.user);
+        loadActivities();
         setEditModalOpen(false);
         alert('Profile updated successfully!');
       } else {
@@ -107,26 +200,6 @@ const Dashboard = () => {
     { id: 'my-exams', label: 'My Exams' },
     { id: 'activity', label: 'Activity' }
   ];
-
-  const stats = [
-    { icon: Calendar, label: 'Total Exams', value: '12', color: 'text-blue-600', borderColor: 'border-l-green-500' },
-    { icon: CheckCircle, label: 'Completed', value: '8', color: 'text-green-600', borderColor: 'border-l-purple-500' },
-    { icon: Clock, label: 'Pending', value: '4', color: 'text-orange-600', borderColor: 'border-l-orange-500' },
-    { icon: Award, label: 'Average Score', value: '85%', color: 'text-purple-600', borderColor: 'border-l-blue-500' }
-  ];
-
-  const upcomingExams = [
-    { title: 'Advanced Mathematics Final', code: 'MATH-401', time: '10:00 AM - 12:00 PM', date: 'March 15, 2026', status: 'Verify Required', statusColor: 'bg-[#F0B100] text-white', borderColor: 'border-[#FFDF20]', actionColor: 'bg-[#5B47FB]', actionIcon: ShieldAlert, statusIcon: ShieldAlert },
-    { title: 'Computer Science Midterm', code: 'CS-302', time: '2:00 PM - 4:00 PM', date: 'March 20, 2026', status: 'Verified', statusColor: 'bg-[#00C950] text-white', borderColor: 'border-gray-200', actionColor: 'bg-[#00C950]', actionIcon: ShieldCheck, statusIcon: ShieldCheck }
-  ];
-
-  const activities = [
-    { action: 'Identity Verified', date: 'Mar 5, 2026 11:30 AM', icon: CheckCircle, color: 'text-green-600' },
-    { action: 'Enrolled in MATH-401', date: 'Mar 4, 2026 3:30 PM', icon: FileText, color: 'text-blue-600' },
-    { action: 'Completed PHY-201 Exam', date: 'Feb 28, 2026 11:00 AM', icon: CheckCircle, color: 'text-green-600' },
-    { action: 'Profile Updated', date: 'Feb 20, 2026 2:16 PM', icon: User, color: 'text-purple-600' }
-  ];
-
   const renderContent = () => {
     switch (activeTab) {
       case 'overview':
@@ -139,38 +212,87 @@ const Dashboard = () => {
                 <p className="text-sm text-gray-500 mt-1">Your scheduled examinations</p>
               </div>
               <div className="space-y-4">
-                {upcomingExams.map((exam, index) => (
-                  <div key={index} className={`p-4 border-2 rounded-lg ${exam.borderColor}`}>
-                    <div className="flex items-start justify-between gap-4 mb-4">
-                      <div>
-                        <p className="font-semibold text-gray-900">{exam.title}</p>
-                        <p className="text-sm text-gray-600 mt-1">{exam.code}</p>
+                {upcomingExams.length > 0 ? (
+                  upcomingExams.map((exam, index) => {
+                    const getExamFullDate = (exam) => {
+                      const d = parseDateSafe(exam.date);
+                      if (exam.time) {
+                        const timeMatch = exam.time.match(/(\d+):(\d+)\s*(AM|PM)/i);
+                        if (timeMatch) {
+                          let hours = parseInt(timeMatch[1], 10);
+                          const minutes = parseInt(timeMatch[2], 10);
+                          const ampm = timeMatch[3].toUpperCase();
+                          if (ampm === 'PM' && hours < 12) hours += 12;
+                          if (ampm === 'AM' && hours === 12) hours = 0;
+                          d.setHours(hours, minutes, 0, 0);
+                        }
+                      }
+                      return d;
+                    };
+
+                    const examFullDate = getExamFullDate(exam);
+                    const now = new Date();
+                    const isMissed = examFullDate < now && exam.verificationStatus !== 'verified';
+
+                    const statusText = isMissed 
+                      ? 'Verification Missed' 
+                      : (exam.verificationStatus === 'verified' ? 'Verified' : 'Verify Required');
+                    const statusColor = isMissed
+                      ? 'bg-red-500 text-white'
+                      : (exam.verificationStatus === 'verified' ? 'bg-[#00C950] text-white' : 'bg-[#F0B100] text-white');
+                    const borderColor = isMissed
+                      ? 'border-red-500 shadow-md shadow-red-50'
+                      : (exam.verificationStatus === 'verified' ? 'border-gray-200' : 'border-[#FFDF20]');
+                    const actionColor = 'bg-[#5B47FB]';
+                    const actionIcon = exam.verificationStatus === 'verified' ? ShieldCheck : ShieldAlert;
+                    const statusIcon = isMissed ? ShieldAlert : (exam.verificationStatus === 'verified' ? ShieldCheck : ShieldAlert);
+
+                    return (
+                      <div key={exam.id || index} className={`p-4 border-2 rounded-lg ${borderColor}`}>
+                        <div className="flex items-start justify-between gap-4 mb-4">
+                          <div>
+                            <p className="font-semibold text-gray-900">{exam.courseName}</p>
+                            <p className="text-sm text-gray-600 mt-1">{exam.courseCode}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-[#ECEEF2] text-gray-700">
+                              Upcoming
+                            </span>
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${statusColor}`}>
+                              <statusIcon size={12} />
+                              {statusText}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-gray-700 mb-3">
+                          <Calendar size={16} className="text-gray-500" />
+                          <span>
+                            {parseDateSafe(exam.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} • {exam.time} ({exam.duration} hrs)
+                          </span>
+                        </div>
+                        {isMissed && (
+                          <div className="bg-red-50 text-red-700 text-xs font-semibold p-3 rounded-lg border border-red-200 mt-2 flex items-center gap-2">
+                            <ShieldAlert size={14} className="text-red-500" />
+                            <span>Identity verification was not completed for this exam. Registration is suspended.</span>
+                          </div>
+                        )}
+                        {!isMissed && exam.verificationStatus !== 'verified' && (
+                          <button
+                            onClick={() => navigate('/verification', { state: { from: '/student' } })}
+                            className={`w-full px-4 py-2 text-white rounded-lg font-medium hover:opacity-90 transition flex items-center justify-center gap-2 ${actionColor}`}
+                          >
+                            <actionIcon size={16} />
+                            Verify Identity for this Exam
+                          </button>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-[#ECEEF2] text-gray-700">
-                          Upcoming
-                        </span>
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${exam.statusColor}`}>
-                          <exam.statusIcon size={12} />
-                          {exam.status}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-700 mb-3">
-                      <Calendar size={16} className="text-gray-500" />
-                      <span>{exam.date} • {exam.time}</span>
-                    </div>
-                    {exam.status === 'Verify Required' && (
-                      <button
-                        onClick={() => navigate('/verification')}
-                        className={`w-full px-4 py-2 text-white rounded-lg font-medium hover:opacity-90 transition flex items-center justify-center gap-2 ${exam.actionColor}`}
-                      >
-                        <exam.actionIcon size={16} />
-                        Verify Identity for this Exam
-                      </button>
-                    )}
+                    );
+                  })
+                ) : (
+                  <div className="p-8 text-center text-gray-400 bg-gray-50 rounded-lg">
+                    No upcoming exams scheduled.
                   </div>
-                ))}
+                )}
               </div>
             </div>
 
@@ -208,7 +330,7 @@ const Dashboard = () => {
           </div>
         );
       case 'my-exams':
-        return <MyExamsTab />;
+        return <MyExamsTab exams={enrolledExams} />;
       case 'activity':
         return (
           <div className="bg-white p-6 rounded-xl shadow-sm">
@@ -237,101 +359,113 @@ const Dashboard = () => {
         <AvailableExams onBack={() => setShowAvailableExams(false)} />
       ) : (
         <div className="space-y-6">
-        <div className="bg-white p-6 rounded-xl shadow-sm">
-          <div className="flex items-center justify-between gap-4 mb-6">
-            <div className="flex items-center gap-4">
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <div className="flex flex-col md:flex-row items-center gap-6">
               {profile.avatar ? (
-                <img src={profile.avatar} alt="Profile" className="w-16 h-16 rounded-full object-cover" />
+                <img src={profile.avatar} alt="Profile" className="w-24 h-24 rounded-full object-cover shadow-md border-2 border-white" />
               ) : (
-                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center">
-                  <User size={32} className="text-purple-600" />
+                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white text-2xl font-black shadow-md border-2 border-white">
+                  {initials}
                 </div>
               )}
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900">{profile.name}</h3>
-                <p className="text-sm text-gray-500">Student ID: {profile.studentId}</p>
+              <div className="flex-1 w-full">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                  <div className="text-left">
+                    <h2 className="text-2xl font-bold text-gray-900 leading-tight">{profile.name}</h2>
+                    <p className="text-sm text-gray-500 mt-0.5">Student ID: {profile.studentId}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={handleOpenEditModal} className="flex items-center gap-2 px-4 py-2 border border-gray-200 bg-white text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50 transition cursor-pointer shadow-sm">
+                      <Edit2 size={16} />
+                      Edit Profile
+                    </button>
+                    <button
+                      onClick={() => setShowAvailableExams(true)}
+                      className="flex items-center gap-2 px-4 py-2 bg-[#5B47FB] text-white rounded-xl text-sm font-medium hover:opacity-90 transition cursor-pointer shadow-sm">
+                      <BookOpen size={16} />
+                      Enroll in Exam
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-[#F8F9FA] p-3.5 rounded-xl border border-gray-100 flex items-center gap-3">
+                    <Mail size={18} className="text-blue-600" />
+                    <div className="text-left">
+                      <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Email</p>
+                      <p className="text-sm font-medium text-gray-800 break-all">{profile.email}</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-[#F8F9FA] p-3.5 rounded-xl border border-gray-100 flex items-center gap-3">
+                    <CreditCard size={18} className="text-purple-600" />
+                    <div className="text-left">
+                      <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">NIC Number</p>
+                      <p className="text-sm font-medium text-gray-800">{profile.nic}</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-[#F8F9FA] p-3.5 rounded-xl border border-gray-100 flex items-center gap-3">
+                    <Calendar size={18} className="text-blue-600" />
+                    <div className="text-left">
+                      <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Enrolled Since</p>
+                      <p className="text-sm font-medium text-gray-800">{profile.enrolledSince}</p>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button onClick={handleOpenEditModal} className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg font-medium hover:bg-slate-200 transition cursor-pointer">
-                <Edit2 size={16} />
-                Edit Profile
-              </button>
-              <button 
-                onClick={() => setShowAvailableExams(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-[#5B47FB] text-white rounded-lg font-medium hover:opacity-90 transition">
-                <Plus size={16} />
-                Enroll in Exam
-              </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-              <div className="flex items-center gap-3">
-                <Mail size={20} className="text-blue-600" />
-                <div>
-                  <p className="text-xs text-gray-500 font-medium">Email</p>
-                  <p className="text-sm font-medium text-gray-900">{profile.email}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-              <div className="flex items-center gap-3">
-                <FileText size={20} className="text-orange-600" />
-                <div>
-                  <p className="text-xs text-gray-500 font-medium">NIC</p>
-                  <p className="text-sm font-medium text-gray-900">{profile.nic}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-              <div className="flex items-center gap-3">
-                <Calendar size={20} className="text-green-600" />
-                <div>
-                  <p className="text-xs text-gray-500 font-medium">Enrollment Date</p>
-                  <p className="text-sm font-medium text-gray-900">{profile.enrolledSince}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {stats.map((stat, index) => (
-            <div key={index} className={`bg-white p-4 rounded-xl shadow-sm border-l-4 ${stat.borderColor}`}>
-              <div className="flex items-center gap-3">
-                <stat.icon size={20} className={stat.color} />
-                <div>
-                  <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-                  <p className="text-sm text-gray-500">{stat.label}</p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <nav className="flex gap-6 border-b border-gray-200 pb-4">
-          {tabs.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => {
-                if (tab.id === 'available') {
-                  navigate('/verification');
-                } else {
-                  setActiveTab(tab.id);
-                }
-              }}
-              className={`text-sm font-medium transition ${activeTab === tab.id ? 'text-purple-600 border-b-2 border-purple-600 pb-2' : 'text-gray-500 hover:text-gray-700'}`}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <StatCard 
+              label="Verification Status" 
+              sub={verificationStatus === 'Verified' || verificationStatus === 'Approved' ? 'Identity verified' : 'Action required'} 
+              theme={verificationStatus === 'Verified' || verificationStatus === 'Approved' ? 'green' : (verificationStatus === 'Pending' ? 'orange' : 'blue')}
             >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
+              <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-[8px] text-xs font-extrabold shadow-sm ${
+                verificationStatus === 'Verified' || verificationStatus === 'Approved'
+                  ? 'bg-[#00CA71] text-white shadow-[#00CA71]/20'
+                  : (verificationStatus === 'Pending' ? 'bg-[#F0B100] text-white shadow-amber-500/20' : 'bg-slate-200 text-slate-700')
+              }`}>
+                {verificationStatus === 'Verified' || verificationStatus === 'Approved' ? (
+                  <CheckCircle2 size={13} className="text-white" />
+                ) : (
+                  <ShieldAlert size={13} />
+                )}
+                <span>{verificationStatus}</span>
+              </div>
+            </StatCard>
+            <StatCard label="Enrolled Exams" sub={`${stats.enrolledCount} active`} theme="blue" icon={BookOpen}>
+              <span className="text-2xl font-black text-gray-800 tracking-tight">{stats.enrolledCount}</span>
+            </StatCard>
+            <StatCard label="Completed Exams" sub={`${stats.completedCount} finished`} theme="purple" icon={Award}>
+              <span className="text-2xl font-black text-gray-800 tracking-tight">{stats.completedCount}</span>
+            </StatCard>
+            <StatCard label="Upcoming" sub={stats.nextExam !== 'None' ? 'Next exam scheduled' : 'No upcoming exams'} theme="orange" icon={Clock}>
+              <span className="text-sm font-black text-gray-800 tracking-tight">{stats.nextExam}</span>
+            </StatCard>
+          </div>
 
-        {renderContent()}
+          <nav className="flex gap-6 border-b border-gray-200 pb-4">
+            {tabs.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  if (tab.id === 'available') {
+                    navigate('/verification');
+                  } else {
+                    setActiveTab(tab.id);
+                  }
+                }}
+                className={`text-sm font-medium transition ${activeTab === tab.id ? 'text-purple-600 border-b-2 border-purple-600 pb-2' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+
+          {renderContent()}
         </div>
       )}
 
@@ -471,6 +605,40 @@ const Dashboard = () => {
         onChange={handleAvatarChange}
       />
     </>
+  );
+};
+
+const StatCard = ({ label, sub, theme, icon: Icon, children }) => {
+  const themeClasses = {
+    green: {
+      border: 'border-[#10B981]/25 border-l-[5px] border-l-[#10B981]',
+      text: 'text-[#10B981]',
+    },
+    blue: {
+      border: 'border-[#3B82F6]/25 border-l-[5px] border-l-[#3B82F6]',
+      text: 'text-[#3B82F6]',
+    },
+    purple: {
+      border: 'border-[#A855F7]/25 border-l-[5px] border-l-[#A855F7]',
+      text: 'text-[#A855F7]',
+    },
+    orange: {
+      border: 'border-[#F97316]/25 border-l-[5px] border-l-[#F97316]',
+      text: 'text-[#F97316]',
+    }
+  };
+
+  const currentTheme = themeClasses[theme] || themeClasses.blue;
+
+  return (
+    <div className={`bg-white p-6 rounded-[20px] border ${currentTheme.border} text-left shadow-sm min-h-[145px] flex flex-col justify-between`}>
+      <p className="text-gray-400 text-sm font-semibold leading-none mb-1">{label}</p>
+      <div className="flex items-center justify-between w-full my-1">
+        {children}
+        {Icon && <Icon className={`${currentTheme.text} w-6 h-6`} />}
+      </div>
+      <p className="text-gray-400 text-xs font-normal leading-none">{sub}</p>
+    </div>
   );
 };
 

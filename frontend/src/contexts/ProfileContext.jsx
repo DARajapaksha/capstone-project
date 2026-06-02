@@ -35,10 +35,23 @@ export const ProfileProvider = ({ children }) => {
     return loadProfile();
   });
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Shared dashboard state
+  const [activities, setActivities] = useState([]);
+  const [upcomingExams, setUpcomingExams] = useState([]);
+  const [enrolledExams, setEnrolledExams] = useState([]);
+  const [stats, setStats] = useState({ enrolledCount: 0, completedCount: 0, nextExam: 'None' });
+  const [verificationStatus, setVerificationStatus] = useState('Not Submitted');
+  const [loadingDashboard, setLoadingDashboard] = useState(true);
 
   const refreshProfile = async () => {
     const token = localStorage.getItem('token');
-    if (!token) return;
+    if (!token) {
+      setLoadingDashboard(false);
+      return;
+    }
 
     try {
       const response = await fetch('http://localhost:3000/api/user/dashboard', {
@@ -48,6 +61,8 @@ export const ProfileProvider = ({ children }) => {
       });
       if (response.ok) {
         const data = await response.json();
+        
+        // 1. Profile
         if (data.profile) {
           setProfileState(prev => {
             const updated = {
@@ -65,6 +80,28 @@ export const ProfileProvider = ({ children }) => {
             return updated;
           });
         }
+        
+        // 2. Notifications
+        if (data.notifications) {
+          const readIds = JSON.parse(localStorage.getItem('readNotificationIds') || '[]');
+          const parsed = data.notifications.map(n => ({
+            ...n,
+            read: n.read || readIds.includes(n.id)
+          }));
+          setNotifications(parsed);
+          setUnreadCount(parsed.filter(n => !n.read).length);
+        }
+
+        // 3. Stats and Exams
+        if (data.stats) setStats(data.stats);
+        if (data.upcomingExams) setUpcomingExams(data.upcomingExams);
+        if (data.enrolledExams) setEnrolledExams(data.enrolledExams);
+        if (data.verificationStatus) setVerificationStatus(data.verificationStatus);
+        
+        // 4. Raw recent activities
+        if (data.recentActivity) {
+          setActivities(data.recentActivity);
+        }
       } else {
         if (response.status === 401) {
           localStorage.removeItem('token');
@@ -75,6 +112,8 @@ export const ProfileProvider = ({ children }) => {
       }
     } catch (err) {
       console.error('Error refreshing profile:', err);
+    } finally {
+      setLoadingDashboard(false);
     }
   };
 
@@ -88,8 +127,52 @@ export const ProfileProvider = ({ children }) => {
     safeSetItem('studentProfile', JSON.stringify(updated));
   };
 
+  const markNotificationAsRead = (id) => {
+    const readIds = JSON.parse(localStorage.getItem('readNotificationIds') || '[]');
+    if (!readIds.includes(id)) {
+      readIds.push(id);
+      safeSetItem('readNotificationIds', JSON.stringify(readIds));
+    }
+    setNotifications(prev => {
+      const updated = prev.map(n => n.id === id ? { ...n, read: true } : n);
+      setUnreadCount(updated.filter(n => !n.read).length);
+      return updated;
+    });
+  };
+
+  const markAllNotificationsAsRead = () => {
+    const readIds = JSON.parse(localStorage.getItem('readNotificationIds') || '[]');
+    notifications.forEach(n => {
+      if (!readIds.includes(n.id)) {
+        readIds.push(n.id);
+      }
+    });
+    safeSetItem('readNotificationIds', JSON.stringify(readIds));
+    setNotifications(prev => {
+      const updated = prev.map(n => ({ ...n, read: true }));
+      setUnreadCount(0);
+      return updated;
+    });
+  };
+
   return (
-    <ProfileContext.Provider value={{ profile, updateProfile, refreshProfile, editModalOpen, setEditModalOpen }}>
+    <ProfileContext.Provider value={{ 
+      profile, 
+      updateProfile, 
+      refreshProfile, 
+      editModalOpen, 
+      setEditModalOpen,
+      notifications,
+      unreadCount,
+      markNotificationAsRead,
+      markAllNotificationsAsRead,
+      activities,
+      upcomingExams,
+      enrolledExams,
+      stats,
+      verificationStatus,
+      loadingDashboard
+    }}>
       {children}
     </ProfileContext.Provider>
   );

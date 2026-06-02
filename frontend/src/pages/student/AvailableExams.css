@@ -43,40 +43,42 @@
   flex-shrink: 0;
 }
 
-.back-button {
+.header-title-container {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.back-arrow-btn {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: #111827;
+  transition: transform 0.2s ease, color 0.2s ease;
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: white;
-  border: 1px solid #e5e7eb;
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #374151;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  margin-bottom: 16px;
+  justify-content: center;
+  border-radius: 50%;
+  margin-top: 4px;
 }
 
-.back-button:hover {
-  background: #f9fafb;
-  border-color: #d1d5db;
-}
-
-.back-button svg {
-  flex-shrink: 0;
+.back-arrow-btn:hover {
+  transform: translateX(-4px);
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
 .header-content {
-  margin-bottom: 24px;
+  margin-bottom: 0;
 }
 
 .page-title {
   font-size: 32px;
-  font-weight: 700;
-  color: #1f2937;
+  font-weight: 800;
+  color: #111827;
   margin: 0 0 8px 0;
+  letter-spacing: -0.025em;
+  text-align: left;
 }
 
 .page-subtitle {
@@ -84,12 +86,22 @@
   color: #6b7280;
   margin: 0;
   line-height: 1.5;
+  text-align: left;
+}
+
+.search-bar-card {
+  background: white;
+  padding: 24px;
+  border-radius: 20px;
+  border: 1px solid white;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+  margin-bottom: 32px;
+  max-width: 1400px;
 }
 
 .search-container {
   position: relative;
-  margin-bottom: 32px;
-  max-width: 600px;
+  width: 100%;
 }
 
 .search-icon {
@@ -103,23 +115,24 @@
 
 .search-input {
   width: 100%;
-  padding: 12px 12px 12px 44px;
-  border: 2px solid #e5e7eb;
-  border-radius: 10px;
+  padding: 14px 14px 14px 48px;
+  border: none;
+  background-color: #F3F6FF;
+  border-radius: 12px;
   font-size: 14px;
+  font-weight: 500;
+  color: #1f2937;
   transition: all 0.3s ease;
-  background: white;
 }
 
 .search-input:focus {
   outline: none;
-  border-color: #c084fc;
-  box-shadow: 0 0 0 3px rgba(192, 132, 252, 0.1);
-  background: white;
+  background-color: #ebefff;
 }
 
 .search-input::placeholder {
   color: #9ca3af;
+  font-weight: 400;
 }
 
 .exams-grid {
@@ -162,10 +175,9 @@
     font-size: 13px;
   }
 
-  .back-button {
-    font-size: 12px;
-    padding: 6px 12px;
-    margin-bottom: 12px;
+  .back-arrow-btn {
+    padding: 2px;
+    margin-top: 2px;
   }
 
   .profile-button {
@@ -175,8 +187,8 @@
     padding: 10px 14px;
   }
 
-  .search-container {
-    max-width: 100%;
+  .search-bar-card {
+    padding: 16px;
     margin-bottom: 24px;
   }
 

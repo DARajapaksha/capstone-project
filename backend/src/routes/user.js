@@ -12,4 +12,9 @@ router.patch('/profile', authMiddleware, userController.updateProfile);
 // Home Aggregator route protected by JWT middleware
 router.get('/home', authMiddleware, userController.getDashboardData);
 
+// Available exams routes protected by JWT middleware
+router.get('/available-exams', authMiddleware, userController.getAvailableExams);
+router.post('/enroll-exam', authMiddleware, userController.enrollInExam);
+router.post('/cancel-exam', authMiddleware, userController.cancelEnrollment);
+
 module.exports = router;

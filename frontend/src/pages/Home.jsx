@@ -4,26 +4,134 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ShieldCheck, Bell, Settings, LogOut, Edit3, Calendar,
-  CheckCircle2, Clock, ArrowRight, BookOpen, Activity, LayoutDashboard, X, Upload
+  CheckCircle2, Clock, ArrowRight, BookOpen, Activity, LayoutDashboard, X, Upload, Award,
+  User, Edit2, CheckCircle, Mail, CreditCard, FileText, ShieldAlert
 } from 'lucide-react';
 import { useProfile } from '../contexts/ProfileContext';
 import NotificationsDropdown from '../components/student/NotificationsDropdown';
 import SettingsDropdown from '../components/student/SettingsDropdown';
 
+const parseDateSafe = (dateStr) => {
+  if (!dateStr) return new Date();
+  const parts = dateStr.trim().split('-');
+  if (parts.length === 3) {
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1; // 0-indexed month
+    const day = parseInt(parts[2], 10);
+    return new Date(year, month, day);
+  }
+  return new Date(dateStr);
+};
+
 const Home = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('Overview');
-  const { profile, updateProfile, editModalOpen, setEditModalOpen } = useProfile();
+  const { profile, updateProfile, editModalOpen, setEditModalOpen, unreadCount } = useProfile();
   const [savingProfile, setSavingProfile] = useState(false);
   const [editForm, setEditForm] = useState({ name: '', email: '', nic: '', studentId: '', avatar: '' });
   const fileInputRef = useRef(null);
   const [notifOpen, setNotifOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(2);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const initials = profile?.name
     ? profile.name.split(' ').map(n => n[0]).join('').toUpperCase()
     : 'AJ';
+
+  const [activities, setActivities] = useState([]);
+  const [upcomingExams, setUpcomingExams] = useState([]);
+  const [stats, setStats] = useState({ enrolledCount: 0, completedCount: 0, nextExam: 'None' });
+  const [verificationStatus, setVerificationStatus] = useState('Not Submitted');
+
+  const formatTimestamp = (ts) => {
+    if (!ts) return '';
+    const date = new Date(ts);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    }) + ' ' + date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
+  const getEventDetails = (event) => {
+    if (event && event.startsWith('Enrolled in')) {
+      return {
+        action: event,
+        icon: FileText,
+        color: 'text-blue-600'
+      };
+    }
+    switch (event) {
+      case 'login':
+        return {
+          action: 'Login Successful',
+          icon: User,
+          color: 'text-indigo-600'
+        };
+      case 'Profile Updated':
+        return {
+          action: 'Profile Updated',
+          icon: Edit2,
+          color: 'text-purple-600'
+        };
+      default:
+        return {
+          action: event || 'User Action',
+          icon: CheckCircle,
+          color: 'text-green-600'
+        };
+    }
+  };
+
+  const loadActivities = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      const response = await fetch('http://localhost:3000/api/user/dashboard', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        
+        if (data.recentActivity) {
+          const filtered = data.recentActivity.filter(item => item.event !== 'Images Uploaded');
+          const mapped = filtered.map(item => {
+            const details = getEventDetails(item.event);
+            return {
+              action: details.action,
+              date: formatTimestamp(item.timestamp),
+              icon: details.icon,
+              color: details.color
+            };
+          });
+          setActivities(mapped);
+        }
+
+        if (data.verificationStatus) {
+          setVerificationStatus(data.verificationStatus);
+        }
+
+        if (data.upcomingExams) {
+          setUpcomingExams(data.upcomingExams);
+        }
+
+        if (data.stats) {
+          setStats(data.stats);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching activities:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadActivities();
+  }, []);
 
   useEffect(() => {
     if (editModalOpen) {
@@ -68,6 +176,7 @@ const Home = () => {
       if (response.ok) {
         const data = await response.json();
         updateProfile(data.user);
+        loadActivities();
         setEditModalOpen(false);
         alert('Profile updated successfully!');
       } else {
@@ -143,7 +252,6 @@ const Home = () => {
             {notifOpen && (
               <NotificationsDropdown
                 onClose={() => setNotifOpen(false)}
-                onUnreadChange={(count) => setUnreadCount(count)}
               />
             )}
             <button
@@ -175,50 +283,105 @@ const Home = () => {
       <main className="max-w-[1600px] mx-auto p-12">
 
         {/* PROFILE SECTION */}
-        <section className="bg-white rounded-[50px] shadow-sm border border-white p-14 mb-10">
-          <div className="flex flex-col lg:flex-row justify-between items-center gap-12 text-left">
-            <div className="flex items-center gap-10">
-              {profile?.avatar ? (
-                <img src={profile.avatar} alt="Profile" className="w-32 h-32 rounded-full object-cover shadow-2xl border-4 border-white ring-4 ring-indigo-100" />
-              ) : (
-                <div className="w-32 h-32 bg-[#5D5FEF] rounded-[50%] flex items-center justify-center text-white font-black text-5xl shadow-2xl shadow-indigo-100">{initials}</div>
-              )}
-              <div>
-                <h1 className="text-3xl font-black mb-3 tracking-tighter uppercase">{profile?.name || ''}</h1>
-                <p className="text-gray-400  text-lg">Student ID: {profile?.studentId || ''}</p>
-                <div className="flex gap-4 mt-8">
-                  <div className="grid grid-cols-3 gap-x-16 gap-y-8 border-l-2 border-gray-50 pl-16">
-                    <InfoCol label="Email" val={profile?.email || ''} />
-                    <InfoCol label="NIC Number" val={profile?.nic || ''} />
-                    <InfoCol label="Enrolled Since" val={profile?.enrolledSince || ''} />
-                  </div>
-                  <button onClick={handleOpenEditModal} className="bg-white border border-gray-200 text-gray-700 px-8 py-3.5 rounded-2xl text-sm font-black flex items-center gap-2 hover:bg-gray-50 transition-all shadow-sm cursor-pointer">
-                    <Edit3 size={18} /> Edit Profile
+        <section className="bg-white p-6 rounded-[24px] border border-gray-100 shadow-sm mb-10 text-left">
+          <div className="flex flex-col md:flex-row items-center gap-6">
+            {profile?.avatar ? (
+              <img src={profile.avatar} alt="Profile" className="w-24 h-24 rounded-full object-cover shadow-md border-2 border-white" />
+            ) : (
+              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white text-2xl font-black shadow-md border-2 border-white">
+                {initials}
+              </div>
+            )}
+            <div className="flex-1 w-full">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 leading-tight">{profile?.name || ''}</h2>
+                  <p className="text-sm text-gray-500 mt-0.5">Student ID: {profile?.studentId || ''}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={handleOpenEditModal} className="flex items-center gap-2 px-4 py-2 border border-gray-200 bg-white text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50 transition cursor-pointer shadow-sm">
+                    <Edit2 size={16} />
+                    Edit Profile
                   </button>
-                  <button className="bg-[#5D5FEF] text-white px-8 py-3.5 rounded-2xl text-sm font-black flex items-center gap-2 shadow-lg hover:opacity-90 transition-all cursor-pointer">
+                  <button onClick={() => navigate('/student/available')} className="flex items-center gap-2 px-4 py-2 bg-[#5B47FB] text-white rounded-xl text-sm font-medium hover:opacity-90 transition cursor-pointer shadow-sm">
+                    <BookOpen size={16} />
                     Enroll in Exam
                   </button>
                 </div>
               </div>
-            </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-[#F8F9FA] p-3.5 rounded-xl border border-gray-100 flex items-center gap-3">
+                  <Mail size={18} className="text-blue-600" />
+                  <div>
+                    <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Email</p>
+                    <p className="text-sm font-medium text-gray-800 break-all">{profile?.email || ''}</p>
+                  </div>
+                </div>
+
+                <div className="bg-[#F8F9FA] p-3.5 rounded-xl border border-gray-100 flex items-center gap-3">
+                  <CreditCard size={18} className="text-purple-600" />
+                  <div>
+                    <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">NIC Number</p>
+                    <p className="text-sm font-medium text-gray-800">{profile?.nic || ''}</p>
+                  </div>
+                </div>
+
+                <div className="bg-[#F8F9FA] p-3.5 rounded-xl border border-gray-100 flex items-center gap-3">
+                  <Calendar size={18} className="text-blue-600" />
+                  <div>
+                    <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Enrolled Since</p>
+                    <p className="text-sm font-medium text-gray-800">{profile?.enrolledSince || ''}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
         {/* STATS ROW */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
-          <StatCard label="Verification Status" val="Verified" sub="Identity Confirmed" theme="success" isStatus />
-          <StatCard label="Enrolled Exams" val="02" sub="1 need verification" theme="warning" />
-          <StatCard label="Completed Exams" val="01" sub="Score: 96%" theme="success" />
-          <StatCard label="Upcoming Exam" val="MATH-401" sub="Mar 15, 2026" theme="primary" />
+          <StatCard 
+            label="Verification Status" 
+            sub={verificationStatus === 'Verified' || verificationStatus === 'Approved' ? 'Identity verified' : 'Action required'} 
+            theme={verificationStatus === 'Verified' || verificationStatus === 'Approved' ? 'green' : (verificationStatus === 'Pending' ? 'orange' : 'blue')}
+          >
+            <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-[8px] text-xs font-extrabold shadow-sm ${
+              verificationStatus === 'Verified' || verificationStatus === 'Approved'
+                ? 'bg-[#00CA71] text-white shadow-[#00CA71]/20'
+                : (verificationStatus === 'Pending' ? 'bg-[#F0B100] text-white shadow-amber-500/20' : 'bg-slate-200 text-slate-700')
+            }`}>
+              {verificationStatus === 'Verified' || verificationStatus === 'Approved' ? (
+                <CheckCircle2 size={13} className="text-white" />
+              ) : (
+                <ShieldAlert size={13} />
+              )}
+              <span>{verificationStatus}</span>
+            </div>
+          </StatCard>
+          <StatCard label="Enrolled Exams" sub={`${stats.enrolledCount} active`} theme="blue" icon={BookOpen}>
+            <span className="text-2xl font-black text-gray-800 tracking-tight">{stats.enrolledCount}</span>
+          </StatCard>
+          <StatCard label="Completed Exams" sub={`${stats.completedCount} finished`} theme="purple" icon={Award}>
+            <span className="text-2xl font-black text-gray-800 tracking-tight">{stats.completedCount}</span>
+          </StatCard>
+          <StatCard label="Upcoming" sub={stats.nextExam !== 'None' ? 'Next exam scheduled' : 'No upcoming exams'} theme="orange" icon={Clock}>
+            <span className="text-sm font-black text-gray-800 tracking-tight">{stats.nextExam}</span>
+          </StatCard>
         </div>
 
         {/* TAB BAR */}
         <div className="bg-white px-8 py-4 rounded-[30px] flex items-center gap-4 shadow-sm border border-white mb-12">
           <NavTab label="Overview" icon={<LayoutDashboard size={20} />} active={activeTab === 'Overview'} onClick={() => setActiveTab('Overview')} />
           <NavTab label="Verification" icon={<ShieldCheck size={20} />} active={activeTab === 'Verification'} onClick={() => setActiveTab('Verification')} />
-          <NavTab label="My Exams" icon={<BookOpen size={20} />} active={activeTab === 'My Exams'} onClick={() => setActiveTab('My Exams')} />
-          <NavTab label="Activity" icon={<Activity size={20} />} active={activeTab === 'Activity'} onClick={() => setActiveTab('Activity')} />
+          <NavTab label="My Exams" icon={<BookOpen size={20} />} active={activeTab === 'My Exams'} onClick={() => {
+            setActiveTab('My Exams');
+            navigate('/student/my-exams');
+          }} />
+          <NavTab label="Activity" icon={<Activity size={20} />} active={activeTab === 'Activity'} onClick={() => {
+            setActiveTab('Activity');
+            navigate('/student/activity');
+          }} />
         </div>
 
         {/* BOTTOM CONTENT GRID - MATCHING FIGMA RATIO */}
@@ -228,12 +391,50 @@ const Home = () => {
           <div className="lg:col-span-2">
             <div className="flex justify-between items-center mb-6 pl-2">
               <h3 className="text-2xl font-black text-gray-800 tracking-tight uppercase">Upcoming Exams</h3>
-              <button className="text-[#5D5FEF] text-xs font-black uppercase tracking-widest hover:underline">View All</button>
+              <button onClick={() => navigate('/student/my-exams')} className="text-[#5D5FEF] text-xs font-black uppercase tracking-widest hover:underline">View All</button>
             </div>
             <div className="space-y-4">
-              <ExamCard title="Advanced Mathematics Final" code="MATH-401" date="Mar 15, 2026" time="10:00 AM" status="Pending" />
-              <ExamCard title="Computer Science Midterm" code="CS-302" date="Mar 20, 2026" time="02:00 PM" status="Verified" />
-              <ExamCard title="Physical Science Final" code="PHY-201" date="Apr 05, 2026" time="09:00 AM" status="Verified" />
+              {upcomingExams.length > 0 ? (
+                upcomingExams.map((exam, index) => {
+                  const getExamFullDate = (exam) => {
+                    const d = parseDateSafe(exam.date);
+                    if (exam.time) {
+                      const timeMatch = exam.time.match(/(\d+):(\d+)\s*(AM|PM)/i);
+                      if (timeMatch) {
+                        let hours = parseInt(timeMatch[1], 10);
+                        const minutes = parseInt(timeMatch[2], 10);
+                        const ampm = timeMatch[3].toUpperCase();
+                        if (ampm === 'PM' && hours < 12) hours += 12;
+                        if (ampm === 'AM' && hours === 12) hours = 0;
+                        d.setHours(hours, minutes, 0, 0);
+                      }
+                    }
+                    return d;
+                  };
+
+                  const examFullDate = getExamFullDate(exam);
+                  const now = new Date();
+                  const isMissed = examFullDate < now && exam.verificationStatus !== 'verified';
+                  const statusText = isMissed ? 'Verification Missed' : (exam.verificationStatus === 'verified' ? 'Verified' : 'Pending');
+
+                  return (
+                    <ExamCard
+                      key={exam.id || index}
+                      title={exam.courseName}
+                      code={exam.courseCode}
+                      date={parseDateSafe(exam.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      time={exam.time}
+                      status={statusText}
+                      isMissed={isMissed}
+                      onVerify={() => navigate('/verification', { state: { from: '/home' } })}
+                    />
+                  );
+                })
+              ) : (
+                <div className="p-8 text-center text-gray-400 bg-white rounded-[35px] border border-white">
+                  No upcoming exams scheduled.
+                </div>
+              )}
             </div>
           </div>
 
@@ -244,9 +445,17 @@ const Home = () => {
             </div>
             <div className="bg-white rounded-[50px] p-10 border border-white shadow-sm flex-grow">
               <div className="space-y-12">
-                <ActivityItem icon={<ShieldCheck className="text-emerald-500" size={20} />} title="Identity Verified" time="Mar 5, 11:00 AM" />
-                <ActivityItem icon={<CheckCircle2 className="text-indigo-500" size={20} />} title="Enrolled MATH-401" time="Mar 4, 03:30 PM" />
-                <ActivityItem icon={<Clock className="text-blue-500" size={20} />} title="Completed PHY-201" time="Feb 28, 11:00 AM" />
+                {activities.map((activity, index) => {
+                  const Icon = activity.icon;
+                  return (
+                    <ActivityItem
+                      key={index}
+                      icon={<Icon className={activity.color} size={20} />}
+                      title={activity.action}
+                      time={activity.date}
+                    />
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -400,37 +609,82 @@ const NavTab = ({ label, icon, active, onClick }) => (
   </button>
 );
 
-const StatCard = ({ label, val, sub, theme, isStatus }) => {
-  const colors = { warning: 'text-amber-500', success: 'text-emerald-500', primary: 'text-[#5D5FEF]' };
+const StatCard = ({ label, sub, theme, icon: Icon, children }) => {
+  const themeClasses = {
+    green: {
+      border: 'border-[#10B981]/25 border-l-[5px] border-l-[#10B981]',
+      text: 'text-[#10B981]',
+    },
+    blue: {
+      border: 'border-[#3B82F6]/25 border-l-[5px] border-l-[#3B82F6]',
+      text: 'text-[#3B82F6]',
+    },
+    purple: {
+      border: 'border-[#A855F7]/25 border-l-[5px] border-l-[#A855F7]',
+      text: 'text-[#A855F7]',
+    },
+    orange: {
+      border: 'border-[#F97316]/25 border-l-[5px] border-l-[#F97316]',
+      text: 'text-[#F97316]',
+    }
+  };
+
+  const currentTheme = themeClasses[theme] || themeClasses.blue;
+
   return (
-    <div className="bg-white p-10 rounded-[45px] border border-white text-left shadow-sm min-h-[190px] flex flex-col justify-center">
-      <p className="text-gray-400 text-[10px] font-black uppercase tracking-[0.2em] mb-4">{label}</p>
-      <p className={`font-black tracking-tighter leading-none ${isStatus ? 'text-3xl' : 'text-5xl'} ${colors[theme]}`}>{val}</p>
-      <p className="text-gray-400 text-[11px] font-bold mt-4 opacity-80 uppercase">{sub}</p>
+    <div className={`bg-white p-6 rounded-[20px] border ${currentTheme.border} text-left shadow-sm min-h-[145px] flex flex-col justify-between`}>
+      <p className="text-gray-400 text-sm font-semibold leading-none mb-1">{label}</p>
+      <div className="flex items-center justify-between w-full my-1">
+        {children}
+        {Icon && <Icon className={`${currentTheme.text} w-6 h-6`} />}
+      </div>
+      <p className="text-gray-400 text-xs font-normal leading-none">{sub}</p>
     </div>
   );
 };
 
-const ExamCard = ({ title, code, date, time, status }) => (
-  <div className="bg-white p-6 rounded-[35px] border border-white flex justify-between items-center text-left hover:shadow-md transition-shadow group">
-    <div className="flex items-center gap-6">
-      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${status === 'Pending' ? 'bg-amber-50' : 'bg-indigo-50'}`}>
-        <BookOpen className={status === 'Pending' ? 'text-amber-500' : 'text-[#5D5FEF]'} size={24} />
-      </div>
-      <div className="space-y-1">
-        <p className="text-[10px] font-black text-[#5D5FEF] uppercase tracking-widest leading-none mb-1">{code}</p>
-        <h4 className="text-lg font-black text-gray-800 leading-tight">{title}</h4>
-        <div className="flex gap-4 text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-1">
-          <span className="flex items-center gap-1.5"><Calendar size={12} /> {date}</span>
-          <span className="flex items-center gap-1.5"><Clock size={12} /> {time}</span>
+const ExamCard = ({ title, code, date, time, status, isMissed, onVerify }) => {
+  const showVerifyBtn = status === 'Pending' && !isMissed;
+  const cardBorder = isMissed ? 'border-red-500 shadow-md shadow-red-50' : 'border-white';
+  const iconBg = isMissed ? 'bg-red-50' : (status === 'Pending' ? 'bg-amber-50' : 'bg-indigo-50');
+  const iconColor = isMissed ? 'text-red-500' : (status === 'Pending' ? 'text-amber-500' : 'text-[#5D5FEF]');
+
+  return (
+    <div className={`bg-white p-6 rounded-[35px] border ${cardBorder} flex flex-col gap-4 text-left hover:shadow-md transition-shadow group`}>
+      <div className="flex justify-between items-center w-full">
+        <div className="flex items-center gap-6">
+          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${iconBg}`}>
+            <BookOpen className={iconColor} size={24} />
+          </div>
+          <div className="space-y-1">
+            <p className="text-[10px] font-black text-[#5D5FEF] uppercase tracking-widest leading-none mb-1">{code}</p>
+            <h4 className="text-lg font-black text-gray-800 leading-tight">{title}</h4>
+            <div className="flex gap-4 text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-1">
+              <span className="flex items-center gap-1.5"><Calendar size={12} /> {date}</span>
+              <span className="flex items-center gap-1.5"><Clock size={12} /> {time}</span>
+            </div>
+          </div>
         </div>
+        {showVerifyBtn && (
+          <button onClick={onVerify} className="p-4 rounded-2xl transition-all bg-[#5D5FEF] text-white shadow-lg px-8 cursor-pointer">
+            <span className="text-[10px] font-black uppercase">Verify Now</span>
+          </button>
+        )}
+        {!showVerifyBtn && !isMissed && (
+          <button className="p-4 rounded-2xl transition-all bg-gray-50 text-gray-400 group-hover:bg-[#5D5FEF] group-hover:text-white">
+            <ArrowRight size={20} />
+          </button>
+        )}
       </div>
+      {isMissed && (
+        <div className="bg-red-50 text-red-700 text-xs font-semibold p-3 rounded-lg border border-red-200 flex items-center gap-2">
+          <ShieldAlert size={14} className="text-red-500" />
+          <span>Identity verification was not completed for this exam. Registration is suspended.</span>
+        </div>
+      )}
     </div>
-    <button className={`p-4 rounded-2xl transition-all ${status === 'Pending' ? 'bg-[#5D5FEF] text-white shadow-lg px-8' : 'bg-gray-50 text-gray-400 group-hover:bg-[#5D5FEF] group-hover:text-white'}`}>
-      {status === 'Pending' ? <span className="text-[10px] font-black uppercase">Verify Now</span> : <ArrowRight size={20} />}
-    </button>
-  </div>
-);
+  );
+};
 
 const ActivityItem = ({ icon, title, time }) => (
   <div className="flex items-center gap-6 text-left group">

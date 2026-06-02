@@ -1,26 +1,52 @@
 .exam-card {
   background: white;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 20px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 20px;
+  padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   transition: all 0.3s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+}
+
+.exam-card.full {
+  border-color: #fca5a5;
+  box-shadow: 0 4px 20px rgba(239, 68, 68, 0.04);
+}
+
+.exam-card.enrolled {
+  border-color: #a7f3d0;
+  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.04);
+}
+
+.exam-card.open {
+  border-color: #e5e7eb;
 }
 
 @media (max-width: 640px) {
   .exam-card {
     padding: 16px;
-    gap: 10px;
+    gap: 12px;
+    border-radius: 16px;
   }
 }
 
 .exam-card:hover {
-  border-color: #d1d5db;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  transform: translateY(-2px);
+  transform: translateY(-4px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
+.exam-card.full:hover {
+  border-color: #f87171;
+}
+
+.exam-card.enrolled:hover {
+  border-color: #34d399;
+}
+
+.exam-card.open:hover {
+  border-color: #cbd5e1;
 }
 
 .exam-card-header {
