@@ -1,8 +1,5 @@
-node_modules/
+cdnode_modules/
 .env
-guideliness.md
-toDo.md
-process.md
 
 # Hardhat files
 /cache

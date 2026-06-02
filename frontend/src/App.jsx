@@ -11,7 +11,6 @@ import Dashboard from './pages/student/Dashboard';
 import AvailableExams from './pages/student/AvailableExams';
 import MyExamsTab from './pages/student/MyExamsTab';
 import ActivityPage from './pages/student/ActivityPage';
-import ProfilePage from './pages/student/ProfilePage';
 
 function App() {
   return (
@@ -26,8 +25,7 @@ function App() {
           <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
           <Route path="/verification" element={<ProtectedRoute><VerificationPage /></ProtectedRoute>} />
 
-          {/* Profile as standalone page (not nested in StudentLayout) */}
-          <Route path="/student/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+
 
           {/* Student Dashboard with sidebar layout */}
           <Route path="/student" element={<ProtectedRoute><StudentLayout /></ProtectedRoute>}>

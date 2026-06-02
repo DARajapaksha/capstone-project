@@ -20,11 +20,22 @@ const getStudentDashboard = async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    const formatDate = (timestamp) => {
+      if (!timestamp) return 'Jan 15, 2026';
+      const date = new Date(timestamp);
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    };
+
     const userData = userSnapshot.val();
     const userInfo = {
       name: userData.name || '',
+      studentId: userData.studentId || '',
       nic: userData.nic || '',
-      email: userData.email || ''
+      email: userData.email || '',
+      avatar: userData.avatar || '',
+      phone: userData.phone || '',
+      department: userData.department || '',
+      enrolledSince: formatDate(userData.createdAt)
     };
 
     // 2. Retrieve the latest status from Verification_Requests collection
@@ -86,10 +97,10 @@ const updateProfile = async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized: User ID not found in token' });
     }
 
-    const { name, nic } = req.body;
+    const { name, nic, studentId, email, avatar, phone, department } = req.body;
 
-    if (!name && !nic) {
-      return res.status(400).json({ error: 'At least one field (name or nic) is required to update' });
+    if (!name && !nic && !studentId && !email && !avatar && !phone && !department) {
+      return res.status(400).json({ error: 'At least one field (name, nic, studentId, email, avatar, phone, or department) is required to update' });
     }
 
     const db = admin.database();
@@ -103,15 +114,26 @@ const updateProfile = async (req, res) => {
     const updates = {};
     if (name !== undefined) updates.name = name;
     if (nic !== undefined) updates.nic = nic;
+    if (studentId !== undefined) updates.studentId = studentId;
+    if (email !== undefined) updates.email = email;
+    if (avatar !== undefined) updates.avatar = avatar;
+    if (phone !== undefined) updates.phone = phone;
+    if (department !== undefined) updates.department = department;
 
     await userRef.update(updates);
+
+    // Sanitize updates for the audit log to prevent storing huge base64 image strings
+    const auditDetails = { ...updates };
+    if (auditDetails.avatar) {
+      auditDetails.avatar = `[Base64 Image - Size: ${Math.round(auditDetails.avatar.length / 1024)} KB]`;
+    }
 
     const auditLogRef = db.ref('Audit_Log');
     await auditLogRef.push({
       userId: userId,
       event: 'Profile Updated',
       timestamp: admin.database.ServerValue.TIMESTAMP,
-      details: updates
+      details: auditDetails
     });
 
     const updatedUserSnapshot = await userRef.once('value');

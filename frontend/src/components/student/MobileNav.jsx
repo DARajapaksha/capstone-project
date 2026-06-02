@@ -1,7 +1,8 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../firebase/firebase';
-import { X, LogOut, LayoutDashboard, ClipboardList, FileText, Activity, ShieldCheck, UserCircle } from 'lucide-react';
+import { X, LogOut, LayoutDashboard, ClipboardList, FileText, Activity, ShieldCheck, UserCircle, Settings } from 'lucide-react';
+import { useProfile } from '../../contexts/ProfileContext';
 
 
 
@@ -12,16 +13,24 @@ const navItems = [
   { to: '/student/my-exams', label: 'My Exams', icon: FileText },
   { to: '/verification', label: 'Verification', icon: ShieldCheck },
   { to: '/student/activity', label: 'Activity', icon: Activity },
-  { to: '/student/profile', label: 'Profile', icon: UserCircle },
+  { action: 'profile', label: 'Profile', icon: UserCircle },
 ];
 
 const MobileNav = ({ open, onClose }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { setEditModalOpen } = useProfile();
 
   const handleLogout = async () => {
     onClose();
-    await signOut(auth);
+    try {
+      await signOut(auth);
+    } catch (err) {
+      console.error('Firebase signOut error:', err);
+    }
+    localStorage.removeItem('token');
+    localStorage.removeItem('studentProfile');
+    localStorage.removeItem('studentAvatar');
     navigate('/login');
   };
 
@@ -29,8 +38,8 @@ const MobileNav = ({ open, onClose }) => {
 
 
   return (
-    <div className="fixed inset-0 z-40 bg-slate-900/40">
-      <div className="fixed left-0 top-0 h-full w-72 overflow-y-auto bg-white p-5 shadow-2xl">
+    <div className="fixed inset-0 z-40 bg-slate-900/40" onClick={onClose}>
+      <div className="fixed left-0 top-0 h-full w-72 overflow-y-auto bg-white p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">Menu</p>
@@ -45,6 +54,20 @@ const MobileNav = ({ open, onClose }) => {
           {navItems.map((item) => {
             const isActive = location.pathname === item.to;
             const Icon = item.icon;
+            
+            if (item.action === 'profile') {
+              return (
+                <button
+                  key={item.label}
+                  onClick={() => { onClose(); setEditModalOpen(true); }}
+                  className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition border border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900 w-full text-left"
+                >
+                  <Icon size={20} className="transition text-slate-400" />
+                  <span>{item.label}</span>
+                </button>
+              );
+            }
+
             return (
               <Link
                 key={item.to}
@@ -60,10 +83,6 @@ const MobileNav = ({ open, onClose }) => {
         </nav>
 
         <div className="mt-8 flex flex-col gap-3 border-t border-slate-200 pt-5">
-          <button className="inline-flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">
-            <span>Settings</span>
-            <X size={20} className="text-slate-500" />
-          </button>
           <button onClick={handleLogout} className="inline-flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
             <span>Logout</span>
             <LogOut size={20} className="text-slate-500" />
