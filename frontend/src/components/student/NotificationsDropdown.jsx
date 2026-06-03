@@ -1,15 +1,21 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { ShieldAlert, Bell, CheckCircle2 } from 'lucide-react';
-import { useProfile } from '../../contexts/ProfileContext';
+import { getAuth } from 'firebase/auth';
+import { ref, onValue } from 'firebase/database';
+import { db } from '../../firebase/firebase';
+import { useNavigate } from 'react-router-dom';
 
-const NotificationsDropdown = ({ onClose }) => {
-  const { 
-    notifications, 
-    unreadCount, 
-    markNotificationAsRead, 
-    markAllNotificationsAsRead 
-  } = useProfile();
-  
+const NotificationsDropdown = ({ onClose, onUnreadChange }) => {
+  const navigate = useNavigate();
+  const [notifications, setNotifications] = useState([]);
+  const [readIds, setReadIds] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('readNotifs')) || [];
+    } catch {
+      return [];
+    }
+  });
+
   const dropdownRef = useRef(null);
 
   // Close when clicking outside
@@ -23,34 +29,148 @@ const NotificationsDropdown = ({ onClose }) => {
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, [onClose]);
 
-  const getStyle = (n) => {
-    if (n.type === 'success') {
-      return {
-        icon: CheckCircle2,
-        color: 'text-emerald-500',
-        bg: 'bg-emerald-50'
-      };
-    }
-    if (n.type === 'warning') {
-      if (n.title && n.title.includes('Missed')) {
-        return {
-          icon: ShieldAlert,
-          color: 'text-red-500',
-          bg: 'bg-red-50'
-        };
+  // Firebase Real-time listeners
+  useEffect(() => {
+    const auth = getAuth();
+    let unsubEnrollments = null;
+    let unsubExams = null;
+
+    const unsubAuth = auth.onAuthStateChanged((user) => {
+      if (!user) {
+        setNotifications([]);
+        onUnreadChange?.(0);
+        return;
       }
-      return {
-        icon: ShieldAlert,
-        color: 'text-amber-500',
-        bg: 'bg-amber-50'
-      };
-    }
-    // info/default
-    return {
-      icon: Bell,
-      color: 'text-blue-500',
-      bg: 'bg-blue-50'
+
+      const enrollmentsRef = ref(db, `Enrollments/${user.uid}`);
+      unsubEnrollments = onValue(enrollmentsRef, (enrollSnap) => {
+        if (!enrollSnap.exists()) {
+          setNotifications([]);
+          return;
+        }
+        
+        const enrollments = enrollSnap.val();
+        const examIds = Object.keys(enrollments);
+
+        const examsRef = ref(db, 'Exams');
+        unsubExams = onValue(examsRef, (examsSnap) => {
+          if (!examsSnap.exists()) return;
+          const allExams = examsSnap.val();
+          
+          const lastSignIn = user.metadata?.lastSignInTime ? new Date(user.metadata.lastSignInTime) : new Date();
+          let generatedNotifs = [{
+            id: `login-${lastSignIn.getTime()}`,
+            type: 'info',
+            icon: CheckCircle2,
+            color: 'text-blue-500',
+            bg: 'bg-blue-50',
+            title: 'Login Successful',
+            body: 'You have successfully logged into the system.',
+            time: 'Recently',
+            timestamp: lastSignIn.getTime(),
+            actionUrl: '/dashboard'
+          }];
+
+          examIds.forEach(examId => {
+            const enrollment = enrollments[examId];
+            const exam = allExams[examId];
+            if (!exam) return;
+
+            const examName = exam.courseCode || exam.courseName || 'Exam';
+            const verified = (enrollment.verificationStatus || 'pending') === 'verified';
+
+            // Verification notification
+            if (verified) {
+              generatedNotifs.push({
+                id: `${examId}-verified`,
+                type: 'success',
+                icon: CheckCircle2,
+                color: 'text-emerald-500',
+                bg: 'bg-emerald-50',
+                title: 'Verification Successful',
+                body: `Your identity has been verified for ${examName}`,
+                time: 'Recently',
+                timestamp: new Date(enrollment.enrolledAt || Date.now()).getTime() + 1000,
+                actionUrl: '/dashboard'
+              });
+            } else {
+              generatedNotifs.push({
+                id: `${examId}-pending`,
+                type: 'warning',
+                icon: ShieldAlert,
+                color: 'text-amber-500',
+                bg: 'bg-amber-50',
+                title: 'Verification Required',
+                body: `Your identity verification is required for ${examName}`,
+                time: 'Action Needed',
+                timestamp: new Date(enrollment.enrolledAt || Date.now()).getTime(),
+                actionUrl: '/verification',
+                actionState: { examId, examCode: exam.courseCode || examName }
+              });
+            }
+
+            // Exam Reminder Notification (if in the future)
+            if (exam.date) {
+              const examDate = new Date(exam.date);
+              if (!isNaN(examDate.getTime()) && examDate.getTime() > Date.now()) {
+                const daysLeft = Math.ceil((examDate.getTime() - Date.now()) / (1000 * 3600 * 24));
+                generatedNotifs.push({
+                  id: `${examId}-reminder`,
+                  type: 'info',
+                  icon: Bell,
+                  color: 'text-blue-500',
+                  bg: 'bg-blue-50',
+                  title: 'Exam Reminder',
+                  body: `${examName} starts in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}`,
+                  time: exam.date,
+                  timestamp: examDate.getTime() - (30 * 24 * 60 * 60 * 1000), // Sort it properly
+                  actionUrl: '/dashboard'
+                });
+              }
+            }
+          });
+
+          // Sort by timestamp descending
+          generatedNotifs.sort((a, b) => b.timestamp - a.timestamp);
+          setNotifications(generatedNotifs);
+        });
+      });
+    });
+
+    return () => {
+      unsubAuth();
+      if (unsubEnrollments) unsubEnrollments();
+      if (unsubExams) unsubExams();
     };
+  }, []);
+
+  // Update parent with unread count whenever notifications or read status changes
+  const unreadCount = notifications.filter(n => !readIds.includes(n.id)).length;
+  useEffect(() => {
+    onUnreadChange?.(unreadCount);
+  }, [unreadCount, onUnreadChange]);
+
+  const markOneRead = (id) => {
+    if (!readIds.includes(id)) {
+      const newReadIds = [...readIds, id];
+      setReadIds(newReadIds);
+      localStorage.setItem('readNotifs', JSON.stringify(newReadIds));
+    }
+  };
+
+  const handleNotificationClick = (n) => {
+    markOneRead(n.id);
+    if (n.actionUrl) {
+      navigate(n.actionUrl, { state: n.actionState });
+      onClose();
+    }
+  };
+
+  const markAllRead = () => {
+    const allIds = notifications.map(n => n.id);
+    const newReadIds = Array.from(new Set([...readIds, ...allIds]));
+    setReadIds(newReadIds);
+    localStorage.setItem('readNotifs', JSON.stringify(newReadIds));
   };
 
   return (
@@ -70,19 +190,21 @@ const NotificationsDropdown = ({ onClose }) => {
 
       {/* Notification Items */}
       <div className="max-h-[320px] overflow-y-auto divide-y divide-gray-50">
-        {notifications.length > 0 ? (
+        {notifications.length === 0 ? (
+          <div className="p-8 text-center text-gray-400 text-sm font-medium">No notifications yet</div>
+        ) : (
           notifications.map(n => {
-            const style = getStyle(n);
-            const Icon = style.icon;
+            const Icon = n.icon;
+            const isRead = readIds.includes(n.id);
             return (
               <div
                 key={n.id}
-                onClick={() => markNotificationAsRead(n.id)}
-                className="flex items-start gap-4 p-4 hover:bg-slate-50/50 transition-colors cursor-pointer"
+                onClick={() => handleNotificationClick(n)}
+                className={`flex items-start gap-4 p-4 hover:bg-slate-50/50 transition-colors cursor-pointer ${isRead ? 'opacity-60' : ''}`}
               >
                 {/* Icon Circle */}
-                <div className={`flex-shrink-0 w-10 h-10 rounded-full ${style.bg} flex items-center justify-center`}>
-                  <Icon size={18} className={style.color} />
+                <div className={`flex-shrink-0 w-10 h-10 rounded-full ${n.bg} flex items-center justify-center`}>
+                  <Icon size={18} className={n.color} />
                 </div>
 
                 {/* Text Info */}
@@ -99,24 +221,20 @@ const NotificationsDropdown = ({ onClose }) => {
                 </div>
 
                 {/* Unread dot */}
-                {!n.read && (
+                {!isRead && (
                   <span className="flex-shrink-0 w-2.5 h-2.5 bg-[#5D5FEF] rounded-full self-center" />
                 )}
               </div>
             );
           })
-        ) : (
-          <div className="p-8 text-center text-gray-400 text-xs">
-            No notifications at the moment.
-          </div>
         )}
       </div>
 
       {/* Footer */}
       <div className="border-t border-gray-50">
         <button
-          onClick={markAllNotificationsAsRead}
-          disabled={unreadCount === 0}
+          onClick={markAllRead}
+          disabled={unreadCount === 0 || notifications.length === 0}
           className="w-full py-3.5 text-center text-xs font-bold text-slate-700 hover:text-slate-900 disabled:text-slate-400 hover:bg-slate-50 transition-all cursor-pointer"
         >
           {unreadCount === 0 ? 'All caught up ✓' : 'Mark all as read'}

@@ -1,116 +1,117 @@
-import React, { useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertCircle, CheckCircle, Clock, Download, Eye } from 'lucide-react';
-import { useProfile } from '../../contexts/ProfileContext';
+import { AlertCircle, Download, Eye } from 'lucide-react';
+import { ref, onValue, remove } from 'firebase/database';
+import { getAuth } from 'firebase/auth';
+import { db } from '../../firebase/firebase';
 import './MyExamsTab.css';
-
-
-const parseDateSafe = (dateStr) => {
-  if (!dateStr) return new Date();
-  const parts = dateStr.trim().split('-');
-  if (parts.length === 3) {
-    const year = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10) - 1; // 0-indexed month
-    const day = parseInt(parts[2], 10);
-    return new Date(year, month, day);
-  }
-  return new Date(dateStr);
-};
 
 const MyExamsTab = () => {
   const navigate = useNavigate();
-  const { enrolledExams, loadingDashboard, refreshProfile } = useProfile();
+  const [myExams, setMyExams] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const exams = useMemo(() => {
-    if (!enrolledExams) return [];
-    return enrolledExams.map(exam => {
-      const formattedDate = parseDateSafe(exam.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-      return {
-        id: exam.id || exam.courseCode,
-        courseName: exam.courseName,
-        courseCode: exam.courseCode,
-        date: formattedDate,
-        time: exam.time,
-        duration: `${exam.duration * 60} min`,
-        status: exam.status || 'upcoming',
-        verificationStatus: exam.verificationStatus || 'required',
-        badge: exam.verificationStatus === 'verified' ? 'Verified' : 'Verify Required',
-        badgeColor: exam.verificationStatus === 'verified' ? 'green' : 'yellow',
-        verificationMessage: exam.verificationMessage || 'You must verify your identity before taking this exam',
-        verifiedAt: exam.verificationStatus === 'verified' ? 'Verified' : null
-      };
+  useEffect(() => {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (!user) { setLoading(false); return; }
+
+    // Listen to this user's enrollments
+    const enrollmentsRef = ref(db, `Enrollments/${user.uid}`);
+    const unsubEnrollments = onValue(enrollmentsRef, (enrollSnapshot) => {
+      if (!enrollSnapshot.exists()) {
+        setMyExams([]);
+        setLoading(false);
+        return;
+      }
+
+      const enrollments = enrollSnapshot.val();
+      const examIds = Object.keys(enrollments);
+
+      // Listen to all exams to join data
+      const examsRef = ref(db, 'Exams');
+      const unsubExams = onValue(examsRef, (examsSnapshot) => {
+        setLoading(false);
+        const allExams = examsSnapshot.exists() ? examsSnapshot.val() : {};
+
+        const joined = examIds
+          .filter(examId => allExams[examId])
+          .map(examId => {
+            const enrollment = enrollments[examId];
+            const exam = allExams[examId];
+            return {
+              id: examId,
+              courseName: exam.courseName || 'Unknown Exam',
+              courseCode: exam.courseCode || examId,
+              date: exam.date || 'TBD',
+              time: exam.time ? `${exam.time}` : 'TBD',
+              duration: exam.duration ? `${exam.duration * 60} min` : 'TBD',
+              status: 'upcoming',
+              verificationStatus: enrollment.verificationStatus || 'pending',
+              enrolledAt: enrollment.enrolledAt,
+              verifiedAt: enrollment.verifiedAt || null,
+            };
+          });
+
+        // Sort by exam date
+        joined.sort((a, b) => new Date(a.date) - new Date(b.date));
+        setMyExams(joined);
+      });
+
+      return () => unsubExams();
     });
-  }, [enrolledExams]);
+
+    return () => unsubEnrollments();
+  }, []);
 
   const handleVerifyIdentity = (examId) => {
     navigate('/verification', { state: { from: '/student', activeTab: 'my-exams' } });
   };
 
   const handleCancelEnrollment = async (examId) => {
-    const confirmCancel = window.confirm('Are you sure you want to cancel enrollment?');
-    if (!confirmCancel) return;
-
+    if (!window.confirm('Are you sure you want to cancel this enrollment?')) return;
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (!user) return;
     try {
-      const token = localStorage.getItem('token');
-      if (!token) return;
-
-      const response = await fetch('http://localhost:3000/api/user/cancel-exam', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ examId })
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        alert(data.message || 'Successfully cancelled enrollment');
-        refreshProfile(); // Refresh context profile data to update dashboard and My Exams list
-      } else {
-        alert(data.error || 'Failed to cancel enrollment');
-      }
+      const enrollmentRef = ref(db, `Enrollments/${user.uid}/${examId}`);
+      await remove(enrollmentRef);
     } catch (err) {
-      console.error('Error cancelling enrollment:', err);
-      alert('An error occurred during cancellation');
+      alert('Failed to cancel enrollment. Please try again.');
+      console.error(err);
     }
   };
 
   const handleViewDetails = (examId) => {
-    console.log('View details for exam:', examId);
-    alert('Exam details would open here');
+    alert('Exam details coming soon!');
   };
 
   const handleDownloadCertificate = (examId) => {
-    console.log('Download certificate for exam:', examId);
-    alert('Certificate download started');
+    alert('Certificate download started.');
   };
 
-  if (loadingDashboard) {
-    return <div className="my-exams-tab" style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>Loading exams...</div>;
+  if (loading) {
+    return (
+      <div style={{ textAlign: 'center', padding: '3rem', color: '#6b7280' }}>
+        Loading your exams...
+      </div>
+    );
   }
 
-  if (exams.length === 0) {
+  if (myExams.length === 0) {
     return (
       <div className="my-exams-tab">
-        <div className="no-exams-message" style={{ textAlign: 'center', padding: '3rem 1rem' }}>
-          <p style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#64748b' }}>You haven't enrolled in any exams yet.</p>
-          <p className="no-exams-subtitle" style={{ color: '#94a3b8', marginTop: '0.5rem' }}>Browse available exams to get started.</p>
-          <button 
-            onClick={() => navigate('/student/available')}
-            style={{ 
-              marginTop: '1.5rem', 
-              padding: '0.6rem 1.5rem', 
-              background: '#5B47FB', 
-              color: '#fff', 
-              borderRadius: '0.75rem',
-              fontWeight: '600',
-              cursor: 'pointer',
-              border: 'none'
-            }}
-          >
-            Enroll in Exam
-          </button>
+        <div style={{
+          textAlign: 'center', padding: '4rem 2rem',
+          background: 'white', borderRadius: '14px',
+          border: '2px dashed #e5e7eb'
+        }}>
+          <p style={{ fontSize: '16px', color: '#6b7280', margin: 0 }}>
+            You haven't enrolled in any exams yet.
+          </p>
+          <p style={{ fontSize: '14px', color: '#9ca3af', marginTop: '8px' }}>
+            Go to "Available Exams" to browse and enroll.
+          </p>
         </div>
       </div>
     );
@@ -119,7 +120,7 @@ const MyExamsTab = () => {
   return (
     <div className="my-exams-tab">
       <div className="exams-list">
-        {exams.map((exam, index) => (
+        {myExams.map((exam, index) => (
           <div key={exam.id} className="exam-item">
             <div className="exam-header">
               <div className="exam-title-section">
@@ -128,16 +129,12 @@ const MyExamsTab = () => {
               </div>
 
               <div className="exam-badges">
-                <span className={`status-label ${exam.status}`}>{exam.status.charAt(0).toUpperCase() + exam.status.slice(1)}</span>
-                {exam.badges ? (
-                  exam.badges.map((badge, idx) => (
-                    <span key={idx} className={`badge-tag ${exam.badgeColors[idx]}`}>
-                      {badge}
-                    </span>
-                  ))
-                ) : (
-                  <span className={`badge-tag ${exam.badgeColor}`}>{exam.badge}</span>
-                )}
+                <span className={`status-label ${exam.status}`}>
+                  {exam.status.charAt(0).toUpperCase() + exam.status.slice(1)}
+                </span>
+                <span className={`badge-tag ${exam.verificationStatus === 'verified' ? 'green' : 'yellow'}`}>
+                  {exam.verificationStatus === 'verified' ? 'Verified' : 'Verify Required'}
+                </span>
               </div>
             </div>
 
@@ -160,34 +157,29 @@ const MyExamsTab = () => {
               {exam.verifiedAt && (
                 <div className="detail-box">
                   <p className="detail-label">Verified At</p>
-                  <p className="detail-value verified">{exam.verifiedAt}</p>
-                </div>
-              )}
-
-              {exam.score && (
-                <div className="detail-box">
-                  <p className="detail-label">Score</p>
-                  <p className="detail-value score">{exam.score}</p>
+                  <p className="detail-value verified">
+                    {new Date(exam.verifiedAt).toLocaleDateString()}
+                  </p>
                 </div>
               )}
             </div>
 
-            {exam.verificationStatus === 'required' && (
+            {exam.verificationStatus !== 'verified' && (
               <div className="verification-alert">
                 <AlertCircle size={20} className="alert-icon" />
                 <div>
                   <p className="alert-title">Identity verification required</p>
-                  <p className="alert-message">{exam.verificationMessage}</p>
+                  <p className="alert-message">You must verify your identity before taking this exam</p>
                 </div>
               </div>
             )}
 
             <div className="exam-actions">
-              {exam.status === 'upcoming' && exam.verificationStatus === 'required' && (
+              {exam.verificationStatus !== 'verified' && (
                 <>
                   <button
                     className="action-button primary verify-btn"
-                    onClick={() => handleVerifyIdentity(exam.id)}
+                    onClick={handleVerifyIdentity}
                   >
                     Verify Identity Now
                   </button>
@@ -200,7 +192,7 @@ const MyExamsTab = () => {
                 </>
               )}
 
-              {exam.status === 'upcoming' && exam.verificationStatus === 'verified' && (
+              {exam.verificationStatus === 'verified' && (
                 <div className="exam-actions-verified">
                   <button
                     className="action-button secondary view-details-btn"
@@ -217,19 +209,9 @@ const MyExamsTab = () => {
                   </button>
                 </div>
               )}
-
-              {exam.status === 'completed' && (
-                <button
-                  className="action-button secondary download-btn"
-                  onClick={() => handleDownloadCertificate(exam.id)}
-                >
-                  <Download size={16} />
-                  Download Result Certificate
-                </button>
-              )}
             </div>
 
-            {index < exams.length - 1 && <div className="exam-divider"></div>}
+            {index < myExams.length - 1 && <div className="exam-divider"></div>}
           </div>
         ))}
       </div>

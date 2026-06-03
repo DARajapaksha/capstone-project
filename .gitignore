@@ -1,6 +1,8 @@
 node_modules/
 .env
-guidliness.md
+guideliness.md
+toDo.md
+process.md
 
 # Hardhat files
 /cache

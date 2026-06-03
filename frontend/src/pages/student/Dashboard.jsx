@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useProfile } from '../../contexts/ProfileContext';
-
-
-import { Calendar, CheckCircle, Clock, Award, User, Mail, CreditCard, FileText, ShieldCheck, ShieldAlert, Edit2, Plus, Zap, X, Upload, BookOpen, CheckCircle2 } from 'lucide-react';
+import { ref, onValue } from 'firebase/database';
+import { getAuth } from 'firebase/auth';
+import { db } from '../../firebase/firebase';
+import { Calendar, CheckCircle, Clock, Award, User, Mail, CreditCard, FileText, ShieldCheck, ShieldAlert, Edit2, Plus, Zap, X, Upload } from 'lucide-react';
 import AvailableExams from './AvailableExams';
 import MyExamsTab from './MyExamsTab';
 
@@ -29,82 +30,142 @@ const Dashboard = () => {
     updateProfile, 
     editModalOpen, 
     setEditModalOpen,
-    activities: rawActivities,
-    upcomingExams,
-    enrolledExams,
-    stats,
-    verificationStatus,
-    refreshProfile
   } = useProfile();
   const [savingProfile, setSavingProfile] = useState(false);
   const [editForm, setEditForm] = useState({ name: '', email: '', nic: '', studentId: '', avatar: '' });
   const fileInputRef = useRef(null);
+  const tabRefs = useRef({});
+  const [pillStyle, setPillStyle] = useState({ left: 0, width: 0 });
+
+  // Real-time data from Firebase
+  const [upcomingExams, setUpcomingExams] = useState([]);
+  const [activities, setActivities] = useState([]);
+  const [loadingExams, setLoadingExams] = useState(true);
+  const [loadingActivity, setLoadingActivity] = useState(true);
+
+  useEffect(() => {
+    const el = tabRefs.current[activeTab];
+    if (el) {
+      setPillStyle({ left: el.offsetLeft, width: el.offsetWidth });
+    }
+  }, [activeTab]);
+
+  // Real-time: Upcoming Exams from Enrollments joined with Exams
+  useEffect(() => {
+    const auth = getAuth();
+    let unsubEnrollments = null;
+    let unsubExams = null;
+
+    const unsubAuth = auth.onAuthStateChanged((user) => {
+      if (!user) { setLoadingExams(false); return; }
+
+      const enrollmentsRef = ref(db, `Enrollments/${user.uid}`);
+      unsubEnrollments = onValue(enrollmentsRef, (enrollSnap) => {
+        if (!enrollSnap.exists()) { setUpcomingExams([]); setLoadingExams(false); return; }
+        const enrollments = enrollSnap.val();
+        const examIds = Object.keys(enrollments);
+
+        const examsRef = ref(db, 'Exams');
+        unsubExams = onValue(examsRef, (examsSnap) => {
+          setLoadingExams(false);
+          const allExams = examsSnap.exists() ? examsSnap.val() : {};
+          const joined = examIds
+            .filter(examId => allExams[examId])
+            .map(examId => {
+            const enrollment = enrollments[examId];
+            const exam = allExams[examId];
+            const statusVal = enrollment.verificationStatus || 'pending';
+            const verified = statusVal === 'verified';
+            const rejected = statusVal === 'rejected';
+
+            let statusText = 'Verify Required';
+            let statusColor = 'bg-[#F0B100] text-white';
+            let borderColor = 'border-[#FFDF20]';
+            let Icon = ShieldAlert;
+
+            if (verified) {
+              statusText = 'Verified';
+              statusColor = 'bg-[#00C950] text-white';
+              borderColor = 'border-gray-200';
+              Icon = ShieldCheck;
+            } else if (rejected) {
+              statusText = 'Verification Rejected';
+              statusColor = 'bg-[#DC2626] text-white';
+              borderColor = 'border-[#DC2626]';
+              Icon = ShieldAlert;
+            }
+
+            return {
+              id: examId,
+              title: exam.courseName || 'Unknown Exam',
+              code: exam.courseCode || examId,
+              date: exam.date || 'TBD',
+              time: exam.time || 'TBD',
+              status: statusText,
+              statusColor: statusColor,
+              borderColor: borderColor,
+              statusIcon: Icon,
+              actionIcon: Icon,
+              isVerified: verified
+            };
+          });
+          joined.sort((a, b) => new Date(a.date) - new Date(b.date));
+          setUpcomingExams(joined);
+        });
+      });
+    });
+
+    return () => {
+      unsubAuth();
+      if (unsubEnrollments) unsubEnrollments();
+      if (unsubExams) unsubExams();
+    };
+  }, []);
+
+  // Real-time: Recent Activity from Audit_Log filtered by current user
+  useEffect(() => {
+    const auth = getAuth();
+    let unsubAudit = null;
+
+    const unsubAuth = auth.onAuthStateChanged((user) => {
+      if (!user) { setLoadingActivity(false); return; }
+
+      const auditRef = ref(db, 'Audit_Log');
+      unsubAudit = onValue(auditRef, (snap) => {
+        setLoadingActivity(false);
+        if (!snap.exists()) { setActivities([]); return; }
+        const all = snap.val();
+        const userLogs = Object.values(all)
+          .filter(log => log.userId === user.uid)
+          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+          .slice(0, 5)
+          .map(log => {
+            const event = (log.event || '').toLowerCase();
+            let icon = FileText, color = 'text-blue-600';
+            if (event.includes('fail') || event.includes('reject')) { icon = ShieldAlert; color = 'text-red-600'; }
+            else if (event.includes('verif') || event.includes('complet')) { icon = CheckCircle; color = 'text-green-600'; }
+            else if (event.includes('profile')) { icon = User; color = 'text-purple-600'; }
+            const ts = log.timestamp ? new Date(log.timestamp) : null;
+            const dateStr = ts
+              ? ts.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                + ' ' + ts.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+              : '';
+            return { action: log.event || 'Activity', date: dateStr, icon, color };
+          });
+        setActivities(userLogs);
+      });
+    });
+
+    return () => {
+      unsubAuth();
+      if (unsubAudit) unsubAudit();
+    };
+  }, []);
+
 
   const initials = profile?.name
     ? profile.name.split(' ').map(n => n[0]).join('').toUpperCase()
     : 'AJ';
-
-  const formatTimestamp = (ts) => {
-    if (!ts) return '';
-    const date = new Date(ts);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    }) + ' ' + date.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
-  };
-
-  const getEventDetails = (event) => {
-    if (event && event.startsWith('Enrolled in')) {
-      return {
-        action: event,
-        icon: FileText,
-        color: 'text-blue-600'
-      };
-    }
-    switch (event) {
-      case 'login':
-        return {
-          action: 'Login Successful',
-          icon: User,
-          color: 'text-indigo-600'
-        };
-      case 'Profile Updated':
-        return {
-          action: 'Profile Updated',
-          icon: Edit2,
-          color: 'text-purple-600'
-        };
-      default:
-        return {
-          action: event || 'User Action',
-          icon: CheckCircle,
-          color: 'text-green-600'
-        };
-    }
-  };
-
-  const activities = React.useMemo(() => {
-    if (!rawActivities) return [];
-    const filtered = rawActivities.filter(item => item.event !== 'Images Uploaded');
-    return filtered.map(item => {
-      const details = getEventDetails(item.event);
-      return {
-        action: details.action,
-        date: formatTimestamp(item.timestamp),
-        icon: details.icon,
-        color: details.color
-      };
-    });
-  }, [rawActivities]);
-
-  useEffect(() => {
-    refreshProfile();
-  }, [activeTab]);
 
   useEffect(() => {
     if (location.state?.activeTab) {
@@ -143,7 +204,7 @@ const Dashboard = () => {
         payload.avatar = editForm.avatar;
       }
 
-      const response = await fetch('http://localhost:3000/api/user/profile', {
+      const response = await fetch(`http://${window.location.hostname}:5000/api/user/profile`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -155,7 +216,6 @@ const Dashboard = () => {
       if (response.ok) {
         const data = await response.json();
         updateProfile(data.user);
-        loadActivities();
         setEditModalOpen(false);
         alert('Profile updated successfully!');
       } else {
@@ -200,6 +260,14 @@ const Dashboard = () => {
     { id: 'my-exams', label: 'My Exams' },
     { id: 'activity', label: 'Activity' }
   ];
+
+  const stats = [
+    { icon: Calendar, label: 'Total Exams', value: '12', color: 'text-blue-600', borderColor: 'border-l-green-500' },
+    { icon: CheckCircle, label: 'Completed', value: '8', color: 'text-green-600', borderColor: 'border-l-purple-500' },
+    { icon: Clock, label: 'Pending', value: '4', color: 'text-orange-600', borderColor: 'border-l-orange-500' },
+    { icon: Award, label: 'Average Score', value: '85%', color: 'text-purple-600', borderColor: 'border-l-blue-500' }
+  ];
+
   const renderContent = () => {
     switch (activeTab) {
       case 'overview':
@@ -208,91 +276,51 @@ const Dashboard = () => {
             {/* Left Column: Upcoming Exams */}
             <div className="bg-white p-6 rounded-xl shadow-sm">
               <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-900">Upcoming Exams</h3>
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <Calendar size={18} className="text-gray-500" /> Upcoming Exams
+                </h3>
                 <p className="text-sm text-gray-500 mt-1">Your scheduled examinations</p>
               </div>
               <div className="space-y-4">
-                {upcomingExams.length > 0 ? (
-                  upcomingExams.map((exam, index) => {
-                    const getExamFullDate = (exam) => {
-                      const d = parseDateSafe(exam.date);
-                      if (exam.time) {
-                        const timeMatch = exam.time.match(/(\d+):(\d+)\s*(AM|PM)/i);
-                        if (timeMatch) {
-                          let hours = parseInt(timeMatch[1], 10);
-                          const minutes = parseInt(timeMatch[2], 10);
-                          const ampm = timeMatch[3].toUpperCase();
-                          if (ampm === 'PM' && hours < 12) hours += 12;
-                          if (ampm === 'AM' && hours === 12) hours = 0;
-                          d.setHours(hours, minutes, 0, 0);
-                        }
-                      }
-                      return d;
-                    };
-
-                    const examFullDate = getExamFullDate(exam);
-                    const now = new Date();
-                    const isMissed = examFullDate < now && exam.verificationStatus !== 'verified';
-
-                    const statusText = isMissed 
-                      ? 'Verification Missed' 
-                      : (exam.verificationStatus === 'verified' ? 'Verified' : 'Verify Required');
-                    const statusColor = isMissed
-                      ? 'bg-red-500 text-white'
-                      : (exam.verificationStatus === 'verified' ? 'bg-[#00C950] text-white' : 'bg-[#F0B100] text-white');
-                    const borderColor = isMissed
-                      ? 'border-red-500 shadow-md shadow-red-50'
-                      : (exam.verificationStatus === 'verified' ? 'border-gray-200' : 'border-[#FFDF20]');
-                    const actionColor = 'bg-[#5B47FB]';
-                    const actionIcon = exam.verificationStatus === 'verified' ? ShieldCheck : ShieldAlert;
-                    const statusIcon = isMissed ? ShieldAlert : (exam.verificationStatus === 'verified' ? ShieldCheck : ShieldAlert);
-
-                    return (
-                      <div key={exam.id || index} className={`p-4 border-2 rounded-lg ${borderColor}`}>
-                        <div className="flex items-start justify-between gap-4 mb-4">
-                          <div>
-                            <p className="font-semibold text-gray-900">{exam.courseName}</p>
-                            <p className="text-sm text-gray-600 mt-1">{exam.courseCode}</p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-[#ECEEF2] text-gray-700">
-                              Upcoming
-                            </span>
-                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${statusColor}`}>
-                              <statusIcon size={12} />
-                              {statusText}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-gray-700 mb-3">
-                          <Calendar size={16} className="text-gray-500" />
-                          <span>
-                            {parseDateSafe(exam.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} • {exam.time} ({exam.duration} hrs)
-                          </span>
-                        </div>
-                        {isMissed && (
-                          <div className="bg-red-50 text-red-700 text-xs font-semibold p-3 rounded-lg border border-red-200 mt-2 flex items-center gap-2">
-                            <ShieldAlert size={14} className="text-red-500" />
-                            <span>Identity verification was not completed for this exam. Registration is suspended.</span>
-                          </div>
-                        )}
-                        {!isMissed && exam.verificationStatus !== 'verified' && (
-                          <button
-                            onClick={() => navigate('/verification', { state: { from: '/student' } })}
-                            className={`w-full px-4 py-2 text-white rounded-lg font-medium hover:opacity-90 transition flex items-center justify-center gap-2 ${actionColor}`}
-                          >
-                            <actionIcon size={16} />
-                            Verify Identity for this Exam
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="p-8 text-center text-gray-400 bg-gray-50 rounded-lg">
-                    No upcoming exams scheduled.
+                {loadingExams ? (
+                  <p className="text-sm text-gray-400 text-center py-6">Loading exams…</p>
+                ) : upcomingExams.length === 0 ? (
+                  <div className="text-center py-8 text-gray-400">
+                    <Calendar size={32} className="mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">No enrolled exams yet.</p>
                   </div>
-                )}
+                ) : upcomingExams.map((exam) => (
+                  <div key={exam.id} className={`p-4 border-2 rounded-lg ${exam.borderColor}`}>
+                    <div className="flex items-start justify-between gap-4 mb-4">
+                      <div>
+                        <p className="font-semibold text-gray-900">{exam.title}</p>
+                        <p className="text-sm text-gray-600 mt-1">{exam.code}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-[#ECEEF2] text-gray-700">
+                          Upcoming
+                        </span>
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${exam.statusColor}`}>
+                          <exam.statusIcon size={12} />
+                          {exam.status}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-700 mb-3">
+                      <Calendar size={16} className="text-gray-500" />
+                      <span>{exam.date} • {exam.time}</span>
+                    </div>
+                    {!exam.isVerified && (
+                      <button
+                        onClick={() => navigate('/verification', { state: { examId: exam.id, examCode: exam.code } })}
+                        className="w-full px-4 py-2 bg-[#5B47FB] text-white rounded-lg font-medium hover:opacity-90 transition flex items-center justify-center gap-2"
+                      >
+                        <exam.actionIcon size={16} />
+                        {exam.status === 'Verification Rejected' ? 'Retry Verification for this Exam' : 'Verify Identity for this Exam'}
+                      </button>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -303,7 +331,14 @@ const Dashboard = () => {
                 <p className="text-sm text-gray-500 mt-1">Your latest actions</p>
               </div>
               <div className="space-y-3">
-                {activities.map((activity, index) => (
+                {loadingActivity ? (
+                  <p className="text-sm text-gray-400 text-center py-6">Loading activity…</p>
+                ) : activities.length === 0 ? (
+                  <div className="text-center py-8 text-gray-400">
+                    <Clock size={32} className="mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">No recent activity yet.</p>
+                  </div>
+                ) : activities.map((activity, index) => (
                   <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
                     <activity.icon size={20} className={`${activity.color} mt-0.5 flex-shrink-0`} />
                     <div className="flex-1 min-w-0">
@@ -330,7 +365,7 @@ const Dashboard = () => {
           </div>
         );
       case 'my-exams':
-        return <MyExamsTab exams={enrolledExams} />;
+        return <MyExamsTab />;
       case 'activity':
         return (
           <div className="bg-white p-6 rounded-xl shadow-sm">
@@ -358,99 +393,163 @@ const Dashboard = () => {
       {showAvailableExams ? (
         <AvailableExams onBack={() => setShowAvailableExams(false)} />
       ) : (
-        <div className="space-y-6">
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-            <div className="flex flex-col md:flex-row items-center gap-6">
-              {profile.avatar ? (
-                <img src={profile.avatar} alt="Profile" className="w-24 h-24 rounded-full object-cover shadow-md border-2 border-white" />
-              ) : (
-                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white text-2xl font-black shadow-md border-2 border-white">
-                  {initials}
+        <div className="space-y-5">
+
+          {/* ── Profile Card ── */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm">
+            {/* Top row: avatar + name + buttons */}
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
+              <div className="flex items-center gap-4">
+                {profile.avatar ? (
+                  <img src={profile.avatar} alt="Profile" className="w-20 h-20 rounded-full object-cover shrink-0 shadow" />
+                ) : (
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#5B47FB] to-[#9333ea] flex items-center justify-center shrink-0 shadow-md">
+                    <span className="text-white text-2xl font-black tracking-tight">{initials}</span>
+                  </div>
+                )}
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 leading-tight">{profile.name}</h2>
+                  <p className="text-sm text-gray-500 mt-0.5">Student ID: {profile.studentId}</p>
                 </div>
-              )}
-              <div className="flex-1 w-full">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-                  <div className="text-left">
-                    <h2 className="text-2xl font-bold text-gray-900 leading-tight">{profile.name}</h2>
-                    <p className="text-sm text-gray-500 mt-0.5">Student ID: {profile.studentId}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button onClick={handleOpenEditModal} className="flex items-center gap-2 px-4 py-2 border border-gray-200 bg-white text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50 transition cursor-pointer shadow-sm">
-                      <Edit2 size={16} />
-                      Edit Profile
-                    </button>
-                    <button
-                      onClick={() => setShowAvailableExams(true)}
-                      className="flex items-center gap-2 px-4 py-2 bg-[#5B47FB] text-white rounded-xl text-sm font-medium hover:opacity-90 transition cursor-pointer shadow-sm">
-                      <BookOpen size={16} />
-                      Enroll in Exam
-                    </button>
-                  </div>
+              </div>
+              <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:pt-1">
+                <button
+                  onClick={handleOpenEditModal}
+                  className="flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition cursor-pointer"
+                >
+                  <Edit2 size={15} />
+                  Edit Profile
+                </button>
+                <button
+                  onClick={() => setShowAvailableExams(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-[#5B47FB] text-white rounded-lg text-sm font-medium hover:opacity-90 transition"
+                >
+                  <Plus size={15} />
+                  Enroll in Exam
+                </button>
+              </div>
+            </div>
+
+            {/* Info row */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="bg-gray-50 rounded-xl p-3 flex items-center gap-3">
+                <Mail size={18} className="text-blue-500 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-xs text-gray-400 font-medium">Email</p>
+                  <p className="text-sm font-semibold text-gray-800 truncate">{profile.email}</p>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-[#F8F9FA] p-3.5 rounded-xl border border-gray-100 flex items-center gap-3">
-                    <Mail size={18} className="text-blue-600" />
-                    <div className="text-left">
-                      <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Email</p>
-                      <p className="text-sm font-medium text-gray-800 break-all">{profile.email}</p>
-                    </div>
-                  </div>
-
-                  <div className="bg-[#F8F9FA] p-3.5 rounded-xl border border-gray-100 flex items-center gap-3">
-                    <CreditCard size={18} className="text-purple-600" />
-                    <div className="text-left">
-                      <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">NIC Number</p>
-                      <p className="text-sm font-medium text-gray-800">{profile.nic}</p>
-                    </div>
-                  </div>
-
-                  <div className="bg-[#F8F9FA] p-3.5 rounded-xl border border-gray-100 flex items-center gap-3">
-                    <Calendar size={18} className="text-blue-600" />
-                    <div className="text-left">
-                      <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Enrolled Since</p>
-                      <p className="text-sm font-medium text-gray-800">{profile.enrolledSince}</p>
-                    </div>
-                  </div>
+              </div>
+              <div className="bg-gray-50 rounded-xl p-3 flex items-center gap-3">
+                <CreditCard size={18} className="text-purple-500 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-xs text-gray-400 font-medium">NIC Number</p>
+                  <p className="text-sm font-semibold text-gray-800 truncate">{profile.nic}</p>
+                </div>
+              </div>
+              <div className="bg-gray-50 rounded-xl p-3 flex items-center gap-3">
+                <Calendar size={18} className="text-green-500 shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-xs text-gray-400 font-medium">Enrolled Since</p>
+                  <p className="text-sm font-semibold text-gray-800 truncate">{profile.enrolledSince}</p>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <StatCard 
-              label="Verification Status" 
-              sub={verificationStatus === 'Verified' || verificationStatus === 'Approved' ? 'Identity verified' : 'Action required'} 
-              theme={verificationStatus === 'Verified' || verificationStatus === 'Approved' ? 'green' : (verificationStatus === 'Pending' ? 'orange' : 'blue')}
-            >
-              <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-[8px] text-xs font-extrabold shadow-sm ${
-                verificationStatus === 'Verified' || verificationStatus === 'Approved'
-                  ? 'bg-[#00CA71] text-white shadow-[#00CA71]/20'
-                  : (verificationStatus === 'Pending' ? 'bg-[#F0B100] text-white shadow-amber-500/20' : 'bg-slate-200 text-slate-700')
-              }`}>
-                {verificationStatus === 'Verified' || verificationStatus === 'Approved' ? (
-                  <CheckCircle2 size={13} className="text-white" />
-                ) : (
-                  <ShieldAlert size={13} />
-                )}
-                <span>{verificationStatus}</span>
-              </div>
-            </StatCard>
-            <StatCard label="Enrolled Exams" sub={`${stats.enrolledCount} active`} theme="blue" icon={BookOpen}>
-              <span className="text-2xl font-black text-gray-800 tracking-tight">{stats.enrolledCount}</span>
-            </StatCard>
-            <StatCard label="Completed Exams" sub={`${stats.completedCount} finished`} theme="purple" icon={Award}>
-              <span className="text-2xl font-black text-gray-800 tracking-tight">{stats.completedCount}</span>
-            </StatCard>
-            <StatCard label="Upcoming" sub={stats.nextExam !== 'None' ? 'Next exam scheduled' : 'No upcoming exams'} theme="orange" icon={Clock}>
-              <span className="text-sm font-black text-gray-800 tracking-tight">{stats.nextExam}</span>
-            </StatCard>
+          {/* ── Stat Cards ── */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {(() => {
+              const totalEnrolled = upcomingExams.length;
+              const needVerification = upcomingExams.filter(e => e.status === 'Verify Required').length;
+              const nextExam = upcomingExams.length > 0 ? upcomingExams[0] : null;
+              
+              let nextExamDate = 'None';
+              let nextExamName = 'No upcoming exams';
+              if (nextExam) {
+                const d = new Date(nextExam.date);
+                if (!isNaN(d.getTime())) {
+                  nextExamDate = `Next: ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+                } else {
+                  nextExamDate = `Next: ${nextExam.date}`;
+                }
+                nextExamName = nextExam.title;
+              }
+              
+              const isFullyVerified = totalEnrolled > 0 && needVerification === 0;
+              const vStatusText = totalEnrolled === 0 ? 'No Exams' : isFullyVerified ? 'Verified' : 'Pending';
+              const vStatusBg = totalEnrolled === 0 ? 'bg-gray-100 text-gray-700' : isFullyVerified ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700';
+              const VIcon = totalEnrolled === 0 ? ShieldCheck : isFullyVerified ? CheckCircle : ShieldAlert;
+
+              return (
+                <>
+                  {/* Verification Status */}
+                  <div className="bg-white rounded-2xl p-4 shadow-sm border-2 border-green-400">
+                    <p className="text-xs text-gray-500 font-medium mb-3">Verification Status</p>
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold mb-3 ${vStatusBg}`}>
+                      <VIcon size={12} /> {vStatusText}
+                    </span>
+                    <p className="text-xs text-gray-500">
+                      {totalEnrolled === 0 ? "Enroll to start" : isFullyVerified ? "All clear!" : "Action needed"}
+                    </p>
+                  </div>
+
+                  {/* Enrolled Exams */}
+                  <div className="bg-white rounded-2xl p-4 shadow-sm border-2 border-blue-400">
+                    <p className="text-xs text-gray-500 font-medium mb-2">Enrolled Exams</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-3xl font-bold text-gray-900">{totalEnrolled}</p>
+                      <FileText size={22} className="text-blue-400" />
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">{needVerification} need verification</p>
+                  </div>
+
+                  {/* Completed Exams */}
+                  <div className="bg-white rounded-2xl p-4 shadow-sm border-2 border-purple-400">
+                    <p className="text-xs text-gray-500 font-medium mb-2">Completed Exams</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-3xl font-bold text-gray-900">0</p>
+                      <Award size={22} className="text-purple-400" />
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">Avg. Score: 0%</p>
+                  </div>
+
+                  {/* Upcoming */}
+                  <div className="bg-white rounded-2xl p-4 shadow-sm border-2 border-orange-400">
+                    <p className="text-xs text-gray-500 font-medium mb-2">Upcoming</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-lg font-bold text-gray-900 leading-tight truncate pr-2">{nextExamDate}</p>
+                      <Clock size={22} className="text-orange-400 shrink-0" />
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2 truncate">{nextExamName}</p>
+                  </div>
+                </>
+              );
+            })()}
           </div>
 
-          <nav className="flex gap-6 border-b border-gray-200 pb-4">
+          {/* ── Tab Nav ── */}
+          <nav className="relative flex bg-gray-100 rounded-2xl p-1 w-fit">
+            {/* Sliding white pill */}
+            <span
+              aria-hidden
+              style={{
+                position: 'absolute',
+                top: 4,
+                bottom: 4,
+                left: pillStyle.left,
+                width: pillStyle.width,
+                transition: 'left 0.25s cubic-bezier(0.4,0,0.2,1), width 0.25s cubic-bezier(0.4,0,0.2,1)',
+                background: 'white',
+                borderRadius: '0.75rem',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.10)',
+                pointerEvents: 'none',
+                zIndex: 0,
+              }}
+            />
             {tabs.map(tab => (
               <button
                 key={tab.id}
+                ref={el => { tabRefs.current[tab.id] = el; }}
                 onClick={() => {
                   if (tab.id === 'available') {
                     navigate('/verification');
@@ -458,7 +557,11 @@ const Dashboard = () => {
                     setActiveTab(tab.id);
                   }
                 }}
-                className={`text-sm font-medium transition ${activeTab === tab.id ? 'text-purple-600 border-b-2 border-purple-600 pb-2' : 'text-gray-500 hover:text-gray-700'}`}
+                className={`relative z-10 px-4 py-2 text-sm font-medium rounded-xl transition-colors duration-200 ${
+                  activeTab === tab.id
+                    ? 'text-gray-900'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
               >
                 {tab.label}
               </button>
@@ -468,6 +571,7 @@ const Dashboard = () => {
           {renderContent()}
         </div>
       )}
+
 
       {/* EDIT PROFILE MODAL */}
       {editModalOpen && (
@@ -605,40 +709,6 @@ const Dashboard = () => {
         onChange={handleAvatarChange}
       />
     </>
-  );
-};
-
-const StatCard = ({ label, sub, theme, icon: Icon, children }) => {
-  const themeClasses = {
-    green: {
-      border: 'border-[#10B981]/25 border-l-[5px] border-l-[#10B981]',
-      text: 'text-[#10B981]',
-    },
-    blue: {
-      border: 'border-[#3B82F6]/25 border-l-[5px] border-l-[#3B82F6]',
-      text: 'text-[#3B82F6]',
-    },
-    purple: {
-      border: 'border-[#A855F7]/25 border-l-[5px] border-l-[#A855F7]',
-      text: 'text-[#A855F7]',
-    },
-    orange: {
-      border: 'border-[#F97316]/25 border-l-[5px] border-l-[#F97316]',
-      text: 'text-[#F97316]',
-    }
-  };
-
-  const currentTheme = themeClasses[theme] || themeClasses.blue;
-
-  return (
-    <div className={`bg-white p-6 rounded-[20px] border ${currentTheme.border} text-left shadow-sm min-h-[145px] flex flex-col justify-between`}>
-      <p className="text-gray-400 text-sm font-semibold leading-none mb-1">{label}</p>
-      <div className="flex items-center justify-between w-full my-1">
-        {children}
-        {Icon && <Icon className={`${currentTheme.text} w-6 h-6`} />}
-      </div>
-      <p className="text-gray-400 text-xs font-normal leading-none">{sub}</p>
-    </div>
   );
 };
 

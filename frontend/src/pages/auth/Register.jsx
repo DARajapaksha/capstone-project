@@ -1,6 +1,6 @@
 import { auth } from "../../firebase/firebase";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from 'react-router-dom';
 import { Shield, Mail, Lock, KeyRound, Cpu, GraduationCap, User, CreditCard } from 'lucide-react';
 import { useProfile } from "../../contexts/ProfileContext";
@@ -15,11 +15,22 @@ const Register = () => {
   const [otp, setOtp] = useState("");
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [countdown, setCountdown] = useState(60);
   const navigate = useNavigate();
   const { refreshProfile } = useProfile();
 
+  useEffect(() => {
+    let timer;
+    if (showOtpModal && countdown > 0) {
+      timer = setInterval(() => {
+        setCountdown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [showOtpModal, countdown]);
+
   const handleRegister = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
 
     const cleanName = name.trim();
     const cleanStudentId = studentId.trim();
@@ -43,7 +54,7 @@ const Register = () => {
 
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:3000/api/auth/send-otp", {
+      const response = await fetch(`http://${window.location.hostname}:5000/api/auth/send-otp`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -56,8 +67,9 @@ const Register = () => {
       const data = await response.json();
 
       if (response.ok) {
-        alert("Verification code sent to your Gmail address! Please check your inbox.");
+        alert("Verification code sent to your Gmail address! Please check your inbox (and spam folder).");
         setShowOtpModal(true);
+        setCountdown(60); // Reset timer when successfully sent
       } else {
         alert(data.error || "Failed to send OTP");
       }
@@ -82,7 +94,7 @@ const Register = () => {
 
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:3000/api/auth/verify-otp", {
+      const response = await fetch(`http://${window.location.hostname}:5000/api/auth/verify-otp`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -132,7 +144,7 @@ const Register = () => {
       const idToken = await result.user.getIdToken(); // Secure Google ID token
 
       // Send this Google Token to your custom Node.js Backend to verify/register it
-      const response = await fetch('http://localhost:3000/api/auth/google-login', {
+      const response = await fetch(`http://${window.location.hostname}:5000/api/auth/google-login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idToken, isRegister: true })
@@ -172,7 +184,7 @@ const Register = () => {
                   We've sent a 6-digit verification code to <span className="font-semibold text-gray-700">{email}</span>. Please enter it below to complete registration.
                 </p>
 
-                <form className="space-y-4 text-left" onSubmit={handleVerifyOTP} autoComplete="off">
+                <form className="space-y-4 text-left" onSubmit={handleVerifyOTP}>
                   <div className="space-y-1">
                     <label className="block text-sm font-bold text-gray-700 ml-1">Verification Code</label>
                     <div className="relative">
@@ -198,6 +210,18 @@ const Register = () => {
                     {loading ? "Verifying..." : "Verify & Create Account"}
                   </button>
 
+                  <div className="text-center mt-4 pb-2">
+                    <p className="text-sm text-gray-500 mb-2">Didn't receive the code?</p>
+                    <button
+                      type="button"
+                      disabled={countdown > 0 || loading}
+                      onClick={handleRegister}
+                      className="text-[#5D5FEF] font-bold text-sm disabled:text-gray-400 disabled:cursor-not-allowed hover:underline"
+                    >
+                      {countdown > 0 ? `Resend Code in ${countdown}s` : "Resend Code"}
+                    </button>
+                  </div>
+
                   <button
                     type="button"
                     onClick={() => setShowOtpModal(false)}
@@ -217,14 +241,14 @@ const Register = () => {
                   <button className="flex-1 py-3 rounded-xl text-sm font-bold bg-white shadow-sm text-gray-800">Register</button>
                 </div>
 
-                <form className="space-y-4 text-left" onSubmit={handleRegister} autoComplete="off">
+                <form className="space-y-4 text-left" onSubmit={handleRegister}>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="block text-sm font-bold text-gray-700 ml-1">Full Name</label>
                       <div className="relative">
                         <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                         <input type="text" placeholder="John Doe" value={name} onChange={(e) => setName(e.target.value)}
-                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required autoComplete="off" />
+                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required />
                       </div>
                     </div>
 
@@ -233,7 +257,7 @@ const Register = () => {
                       <div className="relative">
                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                         <input type="email" placeholder="example@gmail.com" value={email} onChange={(e) => setEmail(e.target.value)}
-                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required autoComplete="off" />
+                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required />
                       </div>
                     </div>
 
@@ -242,7 +266,7 @@ const Register = () => {
                       <div className="relative">
                         <GraduationCap className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                         <input type="text" placeholder="STU-2026-001" value={studentId} onChange={(e) => setStudentId(e.target.value)}
-                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required autoComplete="off" />
+                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required />
                       </div>
                     </div>
 
@@ -251,7 +275,7 @@ const Register = () => {
                       <div className="relative">
                         <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                         <input type="text" placeholder="123456789V" value={nic} onChange={(e) => setNic(e.target.value)}
-                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required autoComplete="off" />
+                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required />
                       </div>
                     </div>
 
@@ -260,7 +284,7 @@ const Register = () => {
                       <div className="relative">
                         <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                         <input type="password" placeholder="Enter password" value={password} onChange={(e) => setPassword(e.target.value)}
-                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required autoComplete="new-password" />
+                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required />
                       </div>
                     </div>
 
@@ -269,7 +293,7 @@ const Register = () => {
                       <div className="relative">
                         <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                         <input type="password" placeholder="Confirm password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
-                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required autoComplete="new-password" />
+                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required />
                       </div>
                     </div>
                   </div>

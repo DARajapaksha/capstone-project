@@ -34,12 +34,12 @@ const StudentLayout = () => {
           <header className="relative -mx-4 sm:-mx-6 lg:-mx-8 flex items-center justify-between bg-white p-4 rounded-xl mb-6">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-sm">
+                <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-sm shrink-0">
                   <ShieldCheck size={24} />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-semibold text-slate-900">Student Portal</h1>
-                  <p className="text-xs text-slate-500">Identity Verification System</p>
+                  <h1 className="text-lg sm:text-2xl font-semibold text-slate-900 leading-tight">Student Portal</h1>
+                  <p className="text-xs text-slate-500 hidden sm:block">Identity Verification System</p>
                 </div>
               </div>
             </div>
@@ -53,7 +53,7 @@ const StudentLayout = () => {
                   onClose={() => setNotifOpen(false)}
                 />
               )}
-              <button onClick={() => setSettingsOpen(!settingsOpen)} className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50 cursor-pointer" aria-label="Settings">
+              <button onClick={() => setSettingsOpen(!settingsOpen)} className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50 cursor-pointer" aria-label="Settings">
                 <Settings size={20} />
               </button>
               {settingsOpen && (
@@ -64,9 +64,9 @@ const StudentLayout = () => {
                   onLogout={handleLogout}
                 />
               )}
-              <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-xl hover:bg-indigo-700">
-                <LogOut size={20} />
-                Logout
+              <button onClick={handleLogout} className="flex items-center gap-2 px-3 sm:px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 shrink-0">
+                <LogOut size={18} />
+                <span className="hidden sm:inline">Logout</span>
               </button>
             </div>
           </header>

@@ -164,7 +164,7 @@ const Home = () => {
         payload.avatar = editForm.avatar;
       }
 
-      const response = await fetch('http://localhost:3000/api/user/profile', {
+      const response = await fetch(`http://${window.location.hostname}:5000/api/user/profile`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

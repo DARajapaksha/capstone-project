@@ -2,27 +2,45 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Upload, Camera as CameraIcon, Eye, Brain, ShieldCheck, ArrowRight, Check, CheckCircle, RefreshCw, XCircle, Clock, Copy, FileText, Home, AlertCircle } from 'lucide-react';
 import packageInfo from '../../package.json';
+import { getAuth } from 'firebase/auth';
+import { ref, push, set, serverTimestamp, update } from 'firebase/database';
+import { db } from '../firebase/firebase';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 
 export default function VerificationPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { examCode = 'Selected Exam', examId } = location.state || {};
   const fromPath = location.state?.from || '/student';
+
   const [currentStep, setCurrentStep] = useState(1);
   const handleGoBack = () => {
     navigate(fromPath, { state: { activeTab: location.state?.activeTab } });
   };
 
   const [selectedImage, setSelectedImage] = useState(null);
-  
+  const [idFile, setIdFile] = useState(null);
+
   // Camera States
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [selfieImage, setSelfieImage] = useState(null);
-  
+
+  const base64ToBlob = (base64, mimeType) => {
+    const byteString = atob(base64.split(',')[1]);
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+    for (let i = 0; i < byteString.length; i++) {
+      ia[i] = byteString.charCodeAt(i);
+    }
+    return new Blob([ab], { type: mimeType });
+  };
+
   // Processing & Result States
   const [isProcessing, setIsProcessing] = useState(false);
   const [verificationResult, setVerificationResult] = useState(null);
-  
+
   // Refs for video, canvas, and auto-scrolling steps
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -35,7 +53,7 @@ export default function VerificationPage() {
         stepRefs.current[currentStep].scrollIntoView({
           behavior: 'smooth',
           block: 'nearest',
-          inline: 'center' 
+          inline: 'center'
         });
       }
     }, 50);
@@ -56,6 +74,7 @@ export default function VerificationPage() {
   const handleImageUpload = (event) => {
     const file = event.target.files[0];
     if (file) {
+      setIdFile(file);
       setSelectedImage(URL.createObjectURL(file));
     }
   };
@@ -81,11 +100,11 @@ export default function VerificationPage() {
       const video = videoRef.current;
       const canvas = canvasRef.current;
       const context = canvas.getContext('2d');
-      
+
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
-      
+
       const imageUrl = canvas.toDataURL('image/jpeg');
       setSelfieImage(imageUrl);
       stopCamera();
@@ -109,17 +128,41 @@ export default function VerificationPage() {
     if (currentStep > 1) setCurrentStep(currentStep - 1);
   };
 
-  const handleVerify = () => {
+  const handleVerify = async () => {
     setIsProcessing(true);
-    
+
+    let reqId = null;
+    try {
+      const auth = getAuth();
+      const user = auth.currentUser;
+      if (user) {
+        const token = await user.getIdToken();
+        const formData = new FormData();
+        if (idFile) formData.append('id_image', idFile);
+        if (selfieImage) formData.append('selfie_image', base64ToBlob(selfieImage, 'image/jpeg'), 'selfie.jpg');
+
+        const uploadRes = await fetch(`http://localhost:5000/api/verification/upload`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: formData
+        });
+        const uploadData = await uploadRes.json();
+        reqId = uploadData.requestId;
+      }
+    } catch (err) {
+      console.error("Error uploading images:", err);
+    }
+
     // Simulate a 3-second backend AI processing request
-    setTimeout(() => {
+    setTimeout(async () => {
       setIsProcessing(false);
-      
+
       // Randomly pick an outcome to demonstrate the UI (Success, Failed, or Manual Review)
       const outcomes = ['success', 'failed', 'review'];
       const randomOutcome = outcomes[Math.floor(Math.random() * outcomes.length)];
-      
+
       // Generate a realistic score based on the outcome
       let score;
       if (randomOutcome === 'success') score = Math.floor(Math.random() * (99 - 85 + 1)) + 85;
@@ -130,13 +173,41 @@ export default function VerificationPage() {
       const now = new Date();
       const dateString = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       const timeString = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      // Generate a properly-formatted 64-char mock transaction hash (Ethereum-compatible format)
+      const mockHash = () => '0x' + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+      const hash = randomOutcome === 'success' ? mockHash() : null;
 
       setVerificationResult({
         status: randomOutcome,
         score: score,
         date: `${dateString}, ${timeString}`,
-        hash: randomOutcome === 'success' ? '0x' + Math.random().toString(16).substr(2, 40) : null
+        hash: hash
       });
+
+      const auth = getAuth();
+      const user = auth.currentUser;
+      if (user) {
+        try {
+          const token = await user.getIdToken();
+          await fetch(`http://localhost:5000/api/verification/result`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              status: randomOutcome,
+              score: score,
+              examId: examId || null,
+              examCode: examCode,
+              hash: hash,
+              requestId: reqId
+            })
+          });
+        } catch (err) {
+          console.error("Error submitting verification result:", err);
+        }
+      }
 
       nextStep(); // Move to Step 5
     }, 3000);
@@ -145,9 +216,62 @@ export default function VerificationPage() {
   const handleTryAgain = () => {
     setCurrentStep(1);
     setSelectedImage(null);
+    setIdFile(null);
     setSelfieImage(null);
     setVerificationResult(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const downloadCertificate = () => {
+    const pdf = new jsPDF({
+      orientation: 'landscape',
+      unit: 'px',
+      format: [600, 400]
+    });
+
+    // Background
+    pdf.setFillColor(250, 252, 255);
+    pdf.rect(0, 0, 600, 400, 'F');
+
+    // Border
+    pdf.setDrawColor(99, 102, 241);
+    pdf.setLineWidth(4);
+    pdf.rect(20, 20, 560, 360, 'S');
+
+    // Title
+    pdf.setTextColor(30, 41, 59);
+    pdf.setFontSize(24);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Identity Verification Certificate', 300, 70, { align: 'center' });
+
+    // Subtitle
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(100, 116, 139);
+    pdf.text(`Exam: ${examCode}`, 300, 100, { align: 'center' });
+
+    // Status
+    pdf.setTextColor(21, 128, 61);
+    pdf.setFontSize(18);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('STATUS: VERIFIED', 300, 160, { align: 'center' });
+
+    // Details
+    pdf.setTextColor(71, 85, 105);
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`Date & Time: ${verificationResult?.date}`, 300, 220, { align: 'center' });
+    pdf.text(`Face Match Score: ${verificationResult?.score}%`, 300, 245, { align: 'center' });
+    pdf.text(`Liveness Detection: PASSED`, 300, 270, { align: 'center' });
+
+    // Hash
+    pdf.setFontSize(10);
+    pdf.setTextColor(148, 163, 184);
+    pdf.text(`Blockchain TX Hash:`, 300, 320, { align: 'center' });
+    pdf.setFont('courier', 'normal');
+    pdf.text(`${verificationResult?.hash}`, 300, 340, { align: 'center' });
+
+    pdf.save(`${examCode}-Certificate.pdf`);
   };
 
   // --- RENDER HELPERS ---
@@ -157,7 +281,7 @@ export default function VerificationPage() {
   } else if (currentStep === 2) {
     progressPercentage = selfieImage ? 40 : 20;
   } else if (currentStep === 3) {
-    progressPercentage = 60; 
+    progressPercentage = 60;
   } else if (currentStep === 4) {
     progressPercentage = 80;
   } else if (currentStep === 5) {
@@ -167,7 +291,7 @@ export default function VerificationPage() {
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans text-slate-800 overflow-x-hidden">
       <div className="max-w-4xl mx-auto">
-        
+
         {/* Top Header */}
         <div className="flex flex-col md:flex-row md:items-center mb-8 gap-4">
           <button onClick={handleGoBack} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium hover:bg-slate-50 w-max shadow-sm cursor-pointer">
@@ -175,7 +299,7 @@ export default function VerificationPage() {
           </button>
           <div className="md:ml-4">
             <h1 className="text-2xl font-bold text-slate-900">Identity Verification</h1>
-            <p className="text-slate-500 text-sm">Verifying identity for exam: <span className="font-semibold text-slate-700">MATH-401</span></p>
+            <p className="text-slate-500 text-sm">Verifying identity for exam: <span className="font-semibold text-slate-700">{examCode}</span></p>
           </div>
         </div>
 
@@ -187,10 +311,10 @@ export default function VerificationPage() {
               {progressPercentage}% Complete
             </span>
           </div>
-          
+
           <div className="h-2 w-full bg-indigo-50 rounded-full mb-6 overflow-hidden">
-            <div 
-              className="h-full bg-indigo-500 transition-all duration-300" 
+            <div
+              className="h-full bg-indigo-500 transition-all duration-300"
               style={{ width: `${progressPercentage}%` }}
             ></div>
           </div>
@@ -207,27 +331,24 @@ export default function VerificationPage() {
               const isComplete = step.id < currentStep;
 
               return (
-                <div 
-                  key={step.id} 
-                  ref={(el) => (stepRefs.current[step.id] = el)} 
-                  className={`flex flex-col items-center justify-start min-w-[100px] p-3 rounded-xl border transition-all duration-300 snap-center ${
-                    isActive ? 'border-indigo-100 bg-indigo-50/50' : 
-                    isComplete ? 'border-green-100 bg-green-50/50' :
-                    'border-transparent bg-transparent opacity-60'
-                  }`}
+                <div
+                  key={step.id}
+                  ref={(el) => (stepRefs.current[step.id] = el)}
+                  className={`flex flex-col items-center justify-start min-w-[100px] p-3 rounded-xl border transition-all duration-300 snap-center ${isActive ? 'border-indigo-100 bg-indigo-50/50' :
+                      isComplete ? 'border-green-100 bg-green-50/50' :
+                        'border-transparent bg-transparent opacity-60'
+                    }`}
                 >
-                  <div className={`flex items-center justify-center w-12 h-12 rounded-xl mb-3 transition-colors ${
-                    isComplete ? 'bg-green-500 text-white shadow-sm' :
-                    isActive ? 'bg-indigo-500 text-white shadow-sm' : 
-                    'bg-slate-100 text-slate-400'
-                  }`}>
+                  <div className={`flex items-center justify-center w-12 h-12 rounded-xl mb-3 transition-colors ${isComplete ? 'bg-green-500 text-white shadow-sm' :
+                      isActive ? 'bg-indigo-500 text-white shadow-sm' :
+                        'bg-slate-100 text-slate-400'
+                    }`}>
                     {isComplete ? <Check className="w-6 h-6" strokeWidth={3} /> : <step.icon className="w-6 h-6" />}
                   </div>
-                  <span className={`text-xs font-semibold text-center leading-tight px-1 ${
-                    isActive ? 'text-indigo-900' : 
-                    isComplete ? 'text-green-800' :
-                    'text-slate-500'
-                  }`}>
+                  <span className={`text-xs font-semibold text-center leading-tight px-1 ${isActive ? 'text-indigo-900' :
+                      isComplete ? 'text-green-800' :
+                        'text-slate-500'
+                    }`}>
                     {step.name}
                   </span>
                 </div>
@@ -295,8 +416,8 @@ export default function VerificationPage() {
                     </div>
                   </div>
 
-                  <button 
-                    onClick={captureSelfie} 
+                  <button
+                    onClick={captureSelfie}
                     className="w-full py-3.5 bg-indigo-500 text-white font-medium rounded-xl hover:bg-indigo-600 transition-colors shadow-sm flex items-center justify-center gap-2"
                   >
                     <CameraIcon className="w-4 h-4" /> Capture Photo
@@ -308,8 +429,8 @@ export default function VerificationPage() {
                     <img src={selfieImage} alt="Captured Selfie" className="w-full h-full object-cover transform scale-x-[-1]" />
                   </div>
 
-                  <button 
-                    onClick={() => { setSelfieImage(null); startCamera(); }} 
+                  <button
+                    onClick={() => { setSelfieImage(null); startCamera(); }}
                     className="w-full py-3.5 bg-slate-100 text-slate-700 font-medium rounded-xl hover:bg-slate-200 transition-colors shadow-sm"
                   >
                     Retake Photo
@@ -392,14 +513,13 @@ export default function VerificationPage() {
 
         {/* STEP 5: VERIFICATION RESULT CARD */}
         {currentStep === 5 && verificationResult && (
-          <div className="bg-white rounded-2xl p-6 md:p-10 shadow-sm border border-slate-100 mb-6 flex flex-col items-center">
-            
+          <div id="certificate-content" className="bg-white rounded-2xl p-6 md:p-10 shadow-sm border border-slate-100 mb-6 flex flex-col items-center">
+
             {/* Dynamic Status Icon */}
-            <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 shadow-sm border-4 border-white ${
-              verificationResult.status === 'success' ? 'bg-green-100 text-green-600' : 
-              verificationResult.status === 'failed' ? 'bg-rose-100 text-rose-600' : 
-              'bg-amber-100 text-amber-600'
-            }`}>
+            <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 shadow-sm border-4 border-white ${verificationResult.status === 'success' ? 'bg-green-100 text-green-600' :
+                verificationResult.status === 'failed' ? 'bg-rose-100 text-rose-600' :
+                  'bg-amber-100 text-amber-600'
+              }`}>
               {verificationResult.status === 'success' && <CheckCircle className="w-10 h-10" />}
               {verificationResult.status === 'failed' && <XCircle className="w-10 h-10" />}
               {verificationResult.status === 'review' && <Clock className="w-10 h-10" />}
@@ -411,9 +531,9 @@ export default function VerificationPage() {
               {verificationResult.status === 'failed' && 'Verification Failed'}
               {verificationResult.status === 'review' && 'Flagged for Manual Review'}
             </h2>
-            
+
             <p className="text-slate-500 text-center max-w-md mb-8">
-              {verificationResult.status === 'success' && `Your identity has been automatically verified for exam MATH-401. AI confidence score: ${verificationResult.score}%`}
+              {verificationResult.status === 'success' && `Your identity has been automatically verified for exam ${examCode}. AI confidence score: ${verificationResult.score}%`}
               {verificationResult.status === 'failed' && `AI verification failed due to low confidence score (${verificationResult.score}%). Please ensure your ID and selfie are clear and try again.`}
               {verificationResult.status === 'review' && `AI detected some uncertainties (confidence: ${verificationResult.score}%). Your case has been flagged for manual review by our team. You'll be notified within 24 hours.`}
             </p>
@@ -422,11 +542,10 @@ export default function VerificationPage() {
             <div className="w-full max-w-md flex flex-col gap-3 mb-6">
               <div className="flex justify-between items-center p-4 bg-slate-50 rounded-xl border border-slate-100">
                 <span className="text-slate-600 font-medium">Face Match Score</span>
-                <span className={`px-2.5 py-1 text-xs font-bold rounded-lg ${
-                  verificationResult.status === 'success' ? 'bg-indigo-500 text-white' : 
-                  verificationResult.status === 'failed' ? 'bg-rose-500 text-white' : 
-                  'bg-slate-200 text-slate-700'
-                }`}>{verificationResult.score}%</span>
+                <span className={`px-2.5 py-1 text-xs font-bold rounded-lg ${verificationResult.status === 'success' ? 'bg-indigo-500 text-white' :
+                    verificationResult.status === 'failed' ? 'bg-rose-500 text-white' :
+                      'bg-slate-200 text-slate-700'
+                  }`}>{verificationResult.score}%</span>
               </div>
               <div className="flex justify-between items-center p-4 bg-slate-50 rounded-xl border border-slate-100">
                 <span className="text-slate-600 font-medium">Liveness Detection</span>
@@ -436,7 +555,7 @@ export default function VerificationPage() {
                 <span className="text-slate-600 font-medium">Verification Date</span>
                 <span className="text-slate-900 font-medium text-sm text-right leading-tight max-w-[120px]">{verificationResult.date}</span>
               </div>
-              
+
               {/* Blockchain Hash (Success Only) */}
               {verificationResult.status === 'success' && (
                 <div className="flex flex-col p-4 bg-slate-50 rounded-xl border border-slate-100">
@@ -451,11 +570,10 @@ export default function VerificationPage() {
             </div>
 
             {/* Alert Box */}
-            <div className={`w-full max-w-md flex items-start gap-3 p-4 rounded-xl border mb-8 ${
-              verificationResult.status === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 
-              verificationResult.status === 'failed' ? 'bg-rose-50 border-rose-200 text-rose-800' : 
-              'bg-amber-50 border-amber-200 text-amber-800'
-            }`}>
+            <div className={`w-full max-w-md flex items-start gap-3 p-4 rounded-xl border mb-8 ${verificationResult.status === 'success' ? 'bg-green-50 border-green-200 text-green-800' :
+                verificationResult.status === 'failed' ? 'bg-rose-50 border-rose-200 text-rose-800' :
+                  'bg-amber-50 border-amber-200 text-amber-800'
+              }`}>
               {verificationResult.status === 'success' && <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 shrink-0" />}
               {verificationResult.status === 'failed' && <XCircle className="w-5 h-5 text-rose-600 mt-0.5 shrink-0" />}
               {verificationResult.status === 'review' && <Clock className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />}
@@ -465,12 +583,11 @@ export default function VerificationPage() {
                   {verificationResult.status === 'failed' && 'Verification Failed'}
                   {verificationResult.status === 'review' && 'Pending Review'}
                 </h3>
-                <p className={`text-xs ${
-                  verificationResult.status === 'success' ? 'text-green-700' : 
-                  verificationResult.status === 'failed' ? 'text-rose-700' : 
-                  'text-amber-700'
-                }`}>
-                  {verificationResult.status === 'success' && "You're now verified for exam MATH-401 and can proceed with taking the exam"}
+                <p className={`text-xs ${verificationResult.status === 'success' ? 'text-green-700' :
+                    verificationResult.status === 'failed' ? 'text-rose-700' :
+                      'text-amber-700'
+                  }`}>
+                  {verificationResult.status === 'success' && `You're now verified for exam ${examCode} and can proceed with taking the exam`}
                   {verificationResult.status === 'failed' && "The verification failed due to low match confidence. Please ensure good lighting and clear photos"}
                   {verificationResult.status === 'review' && "A verification specialist will review your submission. Check your email for updates"}
                 </p>
@@ -481,7 +598,7 @@ export default function VerificationPage() {
             <div className="w-full max-w-md flex flex-col gap-3">
               {verificationResult.status === 'success' && (
                 <>
-                  <button className="w-full py-3.5 bg-white border border-slate-300 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-colors shadow-sm flex items-center justify-center gap-2">
+                  <button onClick={downloadCertificate} className="w-full py-3.5 bg-white border border-slate-300 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-colors shadow-sm flex items-center justify-center gap-2">
                     <FileText className="w-4 h-4" /> Download Certificate
                   </button>
                   <button onClick={handleGoBack} className="w-full py-3.5 bg-indigo-500 text-white font-medium rounded-xl hover:bg-indigo-600 transition-colors shadow-sm flex items-center justify-center gap-2 cursor-pointer">
@@ -509,7 +626,7 @@ export default function VerificationPage() {
             {/* Next Steps Card */}
             <div className="w-full max-w-md mt-8 p-6 bg-slate-50 rounded-2xl border border-slate-100">
               <h3 className="font-semibold text-slate-900 mb-4">Next Steps</h3>
-              
+
               {verificationResult.status === 'success' && (
                 <div className="flex flex-col gap-4">
                   <div className="flex gap-4">
@@ -574,15 +691,15 @@ export default function VerificationPage() {
         {/* Bottom Navigation (Hidden on Step 5) */}
         {currentStep < 5 && (
           <div className="flex justify-between items-center mt-8">
-            <button 
+            <button
               onClick={prevStep}
               disabled={isProcessing}
               className={`flex items-center gap-2 px-6 py-2.5 font-medium rounded-lg transition-colors ${currentStep === 1 ? 'invisible' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 shadow-sm disabled:opacity-50'}`}
             >
               <ArrowLeft className="w-4 h-4" /> Previous
             </button>
-            
-            <button 
+
+            <button
               onClick={currentStep === 4 ? handleVerify : nextStep}
               disabled={(currentStep === 1 && !selectedImage) || (currentStep === 2 && !selfieImage) || isProcessing}
               className="flex items-center gap-2 px-6 py-2.5 bg-indigo-500 text-white font-medium rounded-lg hover:bg-indigo-600 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed min-w-[140px] justify-center"

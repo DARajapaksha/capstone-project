@@ -5,8 +5,8 @@ const routes = require('./routes');
 
 const app = express();
 
-// Allowed origins — trims trailing slashes so http://localhost:5173/ == http://localhost:5173
-const ALLOWED_ORIGINS = (process.env.CORS_ORIGIN || 'http://localhost:5173')
+// Allowed origins — trims trailing slashes so http://localhost:3000/ == http://localhost:3000
+const ALLOWED_ORIGINS = (process.env.CORS_ORIGIN || 'http://localhost:3000,http://localhost:3001')
   .split(',')
   .map(o => o.trim().replace(/\/$/, ''));
 
@@ -15,7 +15,12 @@ app.use(cors({
     // Allow requests with no origin (curl, Postman, mobile apps)
     if (!origin) return callback(null, true);
     const normalised = origin.replace(/\/$/, '');
-    if (ALLOWED_ORIGINS.includes(normalised)) {
+    // Allow any local network IP (192.168.x.x, 10.x.x.x) on dev ports
+    const isLanOrigin = /^https?:\/\/(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)\d+\.\d+(:\d+)?$/.test(normalised);
+    // Allow any localhost/127.0.0.1 on any port for Vite dynamic ports
+    const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(normalised);
+    
+    if (ALLOWED_ORIGINS.includes(normalised) || isLanOrigin || isLocalhost) {
       callback(null, true);
     } else {
       callback(new Error(`CORS: origin "${origin}" is not allowed.`));
@@ -29,7 +34,7 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 // Main router
 app.use('/api', routes);
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
 
 const server = app.listen(PORT, () => {
   console.log(`AI Identity Verification Backend running on port ${PORT}`);

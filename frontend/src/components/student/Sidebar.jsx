@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, ClipboardList, FileText, Activity, ShieldCheck, UserCircle } from 'lucide-react';
+import { useProfile } from '../../contexts/ProfileContext';
 
 const navItems = [
   { to: '/student', label: 'Overview', icon: LayoutDashboard },
@@ -7,11 +8,12 @@ const navItems = [
   { to: '/student/my-exams', label: 'My Exams', icon: FileText },
   { to: '/verification', label: 'Verification', icon: ShieldCheck },
   { to: '/student/activity', label: 'Activity', icon: Activity },
-  { to: '/student/profile', label: 'Profile', icon: UserCircle },
+  { action: 'profile', label: 'Profile', icon: UserCircle },
 ];
 
 const Sidebar = () => {
   const location = useLocation();
+  const { setEditModalOpen } = useProfile();
 
   return (
     <aside className="fixed left-0 top-0 h-full w-64 hidden md:flex flex-col gap-6 rounded-r-[28px] border-r border-slate-200 bg-white p-6 shadow-[0_30px_60px_rgba(15,23,42,0.08)]">
@@ -19,6 +21,20 @@ const Sidebar = () => {
         {navItems.map((item) => {
           const isActive = location.pathname === item.to;
           const Icon = item.icon;
+          
+          if (item.action === 'profile') {
+            return (
+              <button
+                key={item.label}
+                onClick={() => setEditModalOpen(true)}
+                className="group flex items-center gap-3 rounded-2xl border-l-4 border-transparent px-4 py-3 text-sm font-medium transition text-slate-600 hover:bg-slate-50 hover:text-slate-900 w-full text-left cursor-pointer"
+              >
+                <Icon size={20} className="transition text-slate-400 group-hover:text-slate-600" />
+                <span>{item.label}</span>
+              </button>
+            );
+          }
+
           return (
             <Link
               key={item.to}
