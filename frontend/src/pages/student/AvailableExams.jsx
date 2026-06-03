@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, ArrowLeft, User, Calendar, Clock, MapPin } from 'lucide-react';
-import { ref, onValue } from 'firebase/database';
+import { ref, onValue, set as dbSet } from 'firebase/database';
 import { getAuth } from 'firebase/auth';
 import { db } from '../../firebase/firebase';
 import './AvailableExams.css';
@@ -95,9 +95,8 @@ const AvailableExams = ({ onBack }) => {
     setEnrolling(examId);
     try {
       // Write enrollment to Firebase
-      const { ref: dbRef, set, serverTimestamp } = await import('firebase/database');
-      const enrollmentRef = dbRef(db, `Enrollments/${user.uid}/${examId}`);
-      await set(enrollmentRef, {
+      const enrollmentRef = ref(db, `Enrollments/${user.uid}/${examId}`);
+      await dbSet(enrollmentRef, {
         examId,
         enrolledAt: new Date().toISOString(),
         verificationStatus: 'pending',

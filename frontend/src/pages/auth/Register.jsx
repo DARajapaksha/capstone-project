@@ -54,7 +54,7 @@ const Register = () => {
 
     try {
       setLoading(true);
-      const response = await fetch(`http://${window.location.hostname}:5000/api/auth/send-otp`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/send-otp`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -94,7 +94,7 @@ const Register = () => {
 
     try {
       setLoading(true);
-      const response = await fetch(`http://${window.location.hostname}:5000/api/auth/verify-otp`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/verify-otp`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -144,7 +144,7 @@ const Register = () => {
       const idToken = await result.user.getIdToken(); // Secure Google ID token
 
       // Send this Google Token to your custom Node.js Backend to verify/register it
-      const response = await fetch(`http://${window.location.hostname}:5000/api/auth/google-login`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/google-login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idToken, isRegister: true })

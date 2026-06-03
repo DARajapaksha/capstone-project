@@ -90,7 +90,7 @@ const Home = () => {
     try {
       const token = localStorage.getItem('token');
       if (!token) return;
-      const response = await fetch('http://localhost:3000/api/user/dashboard', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/user/dashboard`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -164,7 +164,7 @@ const Home = () => {
         payload.avatar = editForm.avatar;
       }
 
-      const response = await fetch(`http://${window.location.hostname}:5000/api/user/profile`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/user/profile`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

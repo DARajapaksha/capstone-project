@@ -54,7 +54,7 @@ export const ProfileProvider = ({ children }) => {
     }
 
     try {
-      const response = await fetch(`http://${window.location.hostname}:5000/api/user/dashboard`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/user/dashboard`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

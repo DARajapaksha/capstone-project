@@ -204,7 +204,7 @@ const Dashboard = () => {
         payload.avatar = editForm.avatar;
       }
 
-      const response = await fetch(`http://${window.location.hostname}:5000/api/user/profile`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/user/profile`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

@@ -141,7 +141,7 @@ export default function VerificationPage() {
         if (idFile) formData.append('id_image', idFile);
         if (selfieImage) formData.append('selfie_image', base64ToBlob(selfieImage, 'image/jpeg'), 'selfie.jpg');
 
-        const uploadRes = await fetch(`http://localhost:5000/api/verification/upload`, {
+        const uploadRes = await fetch(`${import.meta.env.VITE_API_URL}/api/verification/upload`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`
@@ -189,7 +189,7 @@ export default function VerificationPage() {
       if (user) {
         try {
           const token = await user.getIdToken();
-          await fetch(`http://localhost:5000/api/verification/result`, {
+          await fetch(`${import.meta.env.VITE_API_URL}/api/verification/result`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
