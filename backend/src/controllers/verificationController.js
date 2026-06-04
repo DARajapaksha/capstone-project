@@ -46,12 +46,66 @@ const uploadVerificationImages = async (req, res) => {
       details: { requestId: newReqRef.key }
     });
 
-    return res.status(201).json({
-      message: 'Verification images uploaded successfully',
-      requestId: newReqRef.key,
-      status: 'Pending'
-    });
+    // ── Call Flask AI service with both images ──────────────────────────
+    // Call Flask /match-faces (liveness already done separately in Step 3)
+    let aiStatus = 'failed';
+    let aiScore = 0;
 
+    try {
+      const aiResponse = await fetch('http://localhost:5001/match-faces', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nic_image: idImageUrl,
+          selfie_image: selfieImageUrl
+        })
+      });
+
+      const aiResult = await aiResponse.json();
+      console.log('Flask match-faces result:', aiResult); // helpful for debugging
+
+      // aiResult = { match: true/false, face_score: 0.87, distance: 0.13, threshold: 0.6 }
+
+      if (aiResult.error) {
+        // Flask returned an error (no face detected etc.)
+        console.error('Flask error:', aiResult.error);
+        return res.status(503).json({
+          error: `AI service error: ${aiResult.error}`,
+          requestId: newReqRef.key
+        });
+      }
+
+      aiScore = Math.round((aiResult.face_score || 0) * 100);
+
+      if (aiResult.match === true) {
+        aiStatus = 'success';
+      } else if ((aiResult.face_score || 0) > 0.4) {
+        aiStatus = 'review';   // partial match → manual review
+      } else {
+        aiStatus = 'failed';
+      }
+
+      await newReqRef.update({
+        status: aiStatus === 'success' ? 'Approved' : 'Pending',
+        score: aiScore,
+        updatedAt: admin.database.ServerValue.TIMESTAMP
+      });
+
+    } catch (aiError) {
+      console.error('Flask AI service error:', aiError);
+      return res.status(503).json({
+        error: 'AI service unavailable. Make sure Flask is running on port 5001.',
+        requestId: newReqRef.key
+      });
+    }
+
+    return res.status(201).json({
+      message: 'Verification complete',
+      requestId: newReqRef.key,
+      status: aiStatus,
+      score: aiScore
+    });
+    
   } catch (error) {
     console.error('Error in uploadVerificationImages:', error);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -166,7 +220,27 @@ const submitVerificationResult = async (req, res) => {
   }
 };
 
+const checkLiveness = async (req, res) => {
+  try {
+    const { frames } = req.body;
+    if (!frames || !Array.isArray(frames) || frames.length === 0) {
+      return res.status(400).json({ error: 'frames array is required' });
+    }
+    const aiResponse = await fetch('http://localhost:5001/check-liveness', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ frames })
+    });
+    const result = await aiResponse.json();
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error('Liveness check error:', error);
+    res.status(500).json({ status: 'fake', error: 'Liveness service unavailable' });
+  }
+};
+
 module.exports = {
   uploadVerificationImages,
-  submitVerificationResult
+  submitVerificationResult,
+  checkLiveness
 };
