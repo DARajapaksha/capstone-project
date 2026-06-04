@@ -2,8 +2,18 @@ import cv2
 import numpy as np
 import base64
 import re
+import os
+import json
 
 SUPPORTED_TYPES = ["jpg", "jpeg", "png", "webp", "bmp"]
+
+# Load threshold from config
+_CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.json")
+with open(_CONFIG_PATH, "r") as _f:
+    _CFG = json.load(_f)["face_match"]
+
+FACE_MATCH_THRESHOLD = float(_CFG["FACE_MATCH_THRESHOLD"])
+
 
 def decode_base64_image(b64_string):
     """
@@ -64,12 +74,16 @@ def match_faces(nic_image_b64, selfie_image_b64):
 
         score = cv2.compareHist(nic_hist, selfie_hist, cv2.HISTCMP_CORREL)
         face_score = round(float(score), 4)
+        # Clamp to [0, 1] — histogram correlation can return slightly negative values
+        face_score = max(0.0, min(1.0, face_score))
+        is_match = face_score > FACE_MATCH_THRESHOLD
 
         return {
-            "match": bool(face_score > 0.6),
+            "match":      is_match,
             "face_score": face_score,
-            "distance": round(1 - face_score, 4),
-            "threshold": 0.6
+            "confidence": face_score,   # standardized alias used by Node.js gateway
+            "distance":   round(1 - face_score, 4),
+            "threshold":  FACE_MATCH_THRESHOLD
         }
 
     except Exception as e:

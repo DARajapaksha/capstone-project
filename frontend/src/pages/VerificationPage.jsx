@@ -80,14 +80,28 @@ export default function VerificationPage() {
     setIsCameraOpen(true);
     setSelfieImage(null);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+      // Directive: minimum 720p resolution for accurate AI facial recognition
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: "user",
+          width:  { ideal: 1280, min: 1280 },
+          height: { ideal: 720,  min: 720  },
+        }
+      });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
     } catch (err) {
       console.error("Error accessing camera:", err);
-      setIsCameraOpen(false);
-      alert("Could not access the camera. Please allow camera permissions in your browser.");
+      // Fallback: try without resolution constraints if device doesn't support 720p
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+        if (videoRef.current) videoRef.current.srcObject = stream;
+        console.warn('Camera fallback: 720p not supported, using default resolution');
+      } catch (fallbackErr) {
+        setIsCameraOpen(false);
+        alert("Could not access the camera. Please allow camera permissions in your browser.");
+      }
     }
   };
 
@@ -126,9 +140,25 @@ export default function VerificationPage() {
 
   const handleVerify = async () => {
     setIsProcessing(true);
-    
+
     let reqId = null;
+    let nicImageBase64 = null;
+    let selfieImageBase64 = null;
+
     try {
+      // --- Step 1: Convert NIC image file to base64 ---
+      if (idFile) {
+        nicImageBase64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(idFile);
+        });
+      }
+      // selfieImage is already a base64 data URL from canvas.toDataURL()
+      selfieImageBase64 = selfieImage;
+
+      // --- Step 2: Upload images to the Node.js backend to get a requestId ---
       const auth = getAuth();
       const user = auth.currentUser;
       if (user) {
@@ -136,77 +166,90 @@ export default function VerificationPage() {
         const formData = new FormData();
         if (idFile) formData.append('id_image', idFile);
         if (selfieImage) formData.append('selfie_image', base64ToBlob(selfieImage, 'image/jpeg'), 'selfie.jpg');
-        
-        const uploadRes = await fetch(`http://localhost:5000/api/verification/upload`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          },
-          body: formData
-        });
-        const uploadData = await uploadRes.json();
-        reqId = uploadData.requestId;
-      }
-    } catch (err) {
-      console.error("Error uploading images:", err);
-    }
 
-    // Simulate a 3-second backend AI processing request
-    setTimeout(async () => {
-      setIsProcessing(false);
-      
-      // Randomly pick an outcome to demonstrate the UI (Success, Failed, or Manual Review)
-      const outcomes = ['success', 'failed', 'review'];
-      const randomOutcome = outcomes[Math.floor(Math.random() * outcomes.length)];
-      
-      // Generate a realistic score based on the outcome
-      let score;
-      if (randomOutcome === 'success') score = Math.floor(Math.random() * (99 - 85 + 1)) + 85;
-      else if (randomOutcome === 'review') score = Math.floor(Math.random() * (84 - 60 + 1)) + 60;
-      else score = Math.floor(Math.random() * (59 - 20 + 1)) + 20;
-
-      // Get current formatted date/time
-      const now = new Date();
-      const dateString = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-      const timeString = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-      // Generate a properly-formatted 64-char mock transaction hash (Ethereum-compatible format)
-      const mockHash = () => '0x' + Array.from({length: 64}, () => Math.floor(Math.random() * 16).toString(16)).join('');
-      const hash = randomOutcome === 'success' ? mockHash() : null;
-
-      setVerificationResult({
-        status: randomOutcome,
-        score: score,
-        date: `${dateString}, ${timeString}`,
-        hash: hash
-      });
-      
-      const auth = getAuth();
-      const user = auth.currentUser;
-      if (user) {
         try {
-          const token = await user.getIdToken();
-          await fetch(`http://localhost:5000/api/verification/result`, {
+          const uploadRes = await fetch(`http://${window.location.hostname}:5000/api/verification/upload`, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              status: randomOutcome,
-              score: score,
-              examId: examId || null,
-              examCode: examCode,
-              hash: hash,
-              requestId: reqId
-            })
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData
           });
+          const uploadData = await uploadRes.json();
+          reqId = uploadData.requestId;
         } catch (err) {
-          console.error("Error submitting verification result:", err);
+          console.error("Image upload to backend failed (continuing with AI):", err);
         }
       }
 
+      // --- Step 3: Call the Python AI service directly ---
+      const aiRes = await fetch('http://127.0.0.1:5001/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: getAuth().currentUser?.uid || 'guest',
+          nic_image: nicImageBase64,
+          selfie_image: selfieImageBase64,
+          // Pass the selfie as a single-frame liveness check
+          frames: [selfieImageBase64]
+        })
+      });
+
+      if (!aiRes.ok) {
+        const errData = await aiRes.json().catch(() => ({}));
+        throw new Error(errData.error || `AI service returned status ${aiRes.status}`);
+      }
+
+      const aiData = await aiRes.json();
+      console.log('AI Service Response:', aiData);
+
+      // --- Step 4: Derive outcome from real AI results ---
+      // face_match.py returns { match, face_score (0-1), distance, threshold }
+      // liveness.py returns { status: "Live"|"Fake", blink_detected, movement_detected }
+      const faceScore = Math.round((aiData.face_match?.face_score ?? 0) * 100);
+      const livenessOk = aiData.liveness?.status === 'Live';
+      const isVerified = aiData.verified === true;
+
+      let outcome;
+      if (isVerified) {
+        outcome = 'success';
+      } else if (faceScore >= 60 && !livenessOk) {
+        outcome = 'review';
+      } else {
+        outcome = 'failed';
+      }
+
+      // --- Step 5: Record the result in the Node.js backend ---
+      let realHash = null;
+      try {
+        const user = getAuth().currentUser;
+        if (user) {
+          const token = await user.getIdToken();
+          const res = await fetch(`http://${window.location.hostname}:5000/api/verification/result`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ status: outcome, score: faceScore, examId: examId || null, examCode, requestId: reqId })
+          });
+          const resultData = await res.json();
+          if (resultData.blockchainTxHash) {
+            realHash = resultData.blockchainTxHash;
+          }
+        }
+      } catch (err) {
+        console.error("Result sync failed:", err);
+      }
+
+      const now = new Date();
+      const dateString = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const timeString = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+      setVerificationResult({ status: outcome, score: faceScore, date: `${dateString}, ${timeString}`, hash: realHash });
+
+    } catch (err) {
+      console.error('Verification Error:', err);
+      alert(`Verification failed: ${err.message}\n\nMake sure the Python AI service is running on http://127.0.0.1:5001`);
+    } finally {
+      setIsProcessing(false);
       nextStep(); // Move to Step 5
-    }, 3000);
+    }
   };
 
   const handleTryAgain = () => {
@@ -558,14 +601,19 @@ export default function VerificationPage() {
               </div>
               
               {/* Blockchain Hash (Success Only) */}
-              {verificationResult.status === 'success' && (
+              {verificationResult.status === 'success' && verificationResult.hash && (
                 <div className="flex flex-col p-4 bg-slate-50 rounded-xl border border-slate-100">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-slate-600 font-medium">Blockchain Transaction Hash</span>
-                    <button className="text-slate-400 hover:text-slate-600"><Copy className="w-4 h-4" /></button>
+                    <button className="text-slate-400 hover:text-slate-600" onClick={() => navigator.clipboard.writeText(verificationResult.hash)}>
+                      <Copy className="w-4 h-4" />
+                    </button>
                   </div>
-                  <span className="text-xs font-mono text-slate-500 break-all">{verificationResult.hash}</span>
-                  <p className="text-[10px] text-slate-400 mt-3">Your verification has been recorded on the blockchain for permanent, tamper-proof validation</p>
+                  <span className="text-xs font-mono text-slate-500 break-all mb-2">{verificationResult.hash}</span>
+                  <a href={`https://amoy.polygonscan.com/tx/${verificationResult.hash}`} target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-600 hover:text-indigo-800 font-medium underline flex items-center gap-1">
+                    Verify on Polygonscan
+                  </a>
+                  <p className="text-[10px] text-slate-400 mt-2">Your verification has been recorded on the blockchain for permanent, tamper-proof validation</p>
                 </div>
               )}
             </div>

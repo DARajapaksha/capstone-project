@@ -63,17 +63,19 @@ def full_verify():
 
     # Step 3 — Final decision
     # Both must pass for verified = True
-    is_verified = (
-        face_result.get("match") == True and
-        liveness_result.get("status") == "Live"
-    )
+    face_score     = face_result.get("face_score", 0)
+    liveness_ok    = liveness_result.get("liveness_status", liveness_result.get("status")) == "Live"
+    is_verified    = face_result.get("match") == True and liveness_ok
 
     return jsonify({
-        "user_id": user_id,
-        "face_match": face_result,
-        "liveness": liveness_result,
-        "verified": is_verified
-        # Note: blockchain hash is handled by the blockchain module
+        "user_id":        user_id,
+        "face_match":     face_result,
+        "liveness":       liveness_result,
+        "verified":       is_verified,
+        # Top-level convenience fields for Node.js gateway
+        "face_score":     face_score,
+        "confidence":     face_score,
+        "liveness_status": liveness_result.get("liveness_status", liveness_result.get("status", "Fake")),
     })
 
 

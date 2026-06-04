@@ -1,6 +1,8 @@
 const admin = require('../config/firebase');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { purgeImageFields } = require('./verificationController');
+const blockchainService = require('../services/blockchainService');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_for_development';
 
@@ -253,6 +255,30 @@ const decideVerification = async (req, res) => {
     }
 
     const now = Date.now();
+    const reqData = snapshot.val();
+    const studentId = reqData.userId || reqData.studentId;
+    const examId = reqData.examId;
+
+    // ── Step 1: Generate SHA-256 hash of verification event data ─────────────
+    // Raw biometric images are STRICTLY excluded — only metadata is hashed
+    let blockchainTxHash = null;
+    try {
+      const hashPayload = {
+        requestId: id,
+        studentId: studentId || 'unknown',
+        decision,
+        decidedBy: verifierId,
+        decidedAt: now,
+        faceScore: reqData.faceScore || reqData.score || 0,
+      };
+      blockchainTxHash = await blockchainService.anchorVerification(hashPayload);
+      console.log(`[Blockchain] Tx anchored: ${blockchainTxHash}`);
+    } catch (bcErr) {
+      console.error('[Blockchain] Anchoring failed (non-fatal):', bcErr.message);
+      // Non-fatal — continue with DB update even if blockchain is unavailable
+    }
+
+    // ── Step 2: Update the verification request status ───────────────────────
     await reqRef.update({
       status: decision,
       decidedBy: verifierId,
@@ -260,32 +286,33 @@ const decideVerification = async (req, res) => {
       decidedAt: now,
       verifierNotes: notes || '',
       updatedAt: admin.database.ServerValue.TIMESTAMP,
+      blockchainTxHash: blockchainTxHash || null,
+      // ── PDPA: clear any residual image fields ──
+      idImageUrl: null,
+      selfieImageUrl: null,
     });
 
-    // If approved, also update the student's isVerified flag
-    const reqData = snapshot.val();
-    const studentId = reqData.userId || reqData.studentId;
-    const examId = reqData.examId;
+    // ── Step 3: PDPA — purge biometric image fields from DB ──────────────────
+    await purgeImageFields(db, id);
 
+    // ── Step 4: Update student status ────────────────────────────────────────
     if (studentId && decision === 'Approved') {
       await db.ref(`Users/${studentId}`).update({
         isVerified: true,
         verificationStatus: 'Verified',
         verifiedAt: admin.database.ServerValue.TIMESTAMP,
+        blockchainTxHash: blockchainTxHash || null,
       });
-
       if (examId) {
         await db.ref(`Enrollments/${studentId}/${examId}`).update({
           verificationStatus: 'verified',
           verifiedAt: admin.database.ServerValue.TIMESTAMP
         });
       }
-
     } else if (studentId && decision === 'Rejected') {
       await db.ref(`Users/${studentId}`).update({
         verificationStatus: 'Rejected',
       });
-
       if (examId) {
         await db.ref(`Enrollments/${studentId}/${examId}`).update({
           verificationStatus: 'rejected'
@@ -293,25 +320,29 @@ const decideVerification = async (req, res) => {
       }
     }
 
-    // Audit log for verifier
+    // ── Step 5: Audit logs ───────────────────────────────────────────────────
     await db.ref('Audit_Log').push({
       userId: verifierId,
       event: `Verifier ${decision} Verification`,
       timestamp: admin.database.ServerValue.TIMESTAMP,
-      details: { requestId: id, studentId, decision, notes: notes || '' },
+      details: { requestId: id, studentId, decision, notes: notes || '', blockchainTxHash },
     });
 
-    // Audit log for student (acts as a notification in Student Portal)
     if (studentId) {
       await db.ref('Audit_Log').push({
         userId: studentId,
         event: decision === 'Approved' ? 'Identity Verification Successful' : 'Identity Verification Failed',
         timestamp: admin.database.ServerValue.TIMESTAMP,
-        details: { requestId: id, verifierId, notes: notes || '' },
+        details: { requestId: id, verifierId, notes: notes || '', blockchainTxHash },
       });
     }
 
-    return res.status(200).json({ message: `Verification ${decision.toLowerCase()} successfully`, id, decision });
+    return res.status(200).json({
+      message: `Verification ${decision.toLowerCase()} successfully`,
+      id,
+      decision,
+      blockchainTxHash,
+    });
   } catch (error) {
     console.error('Error in decideVerification:', error);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -348,34 +379,89 @@ const getVerifierStats = async (req, res) => {
 const listVerifiers = async (req, res) => {
   try {
     const db = admin.database();
-    const snapshot = await db.ref('Verifiers').once('value');
+    const verifiersRef = db.ref('Verifiers');
+    const snapshot = await verifiersRef.once('value');
 
     if (!snapshot.exists()) {
       return res.status(200).json({ verifiers: [] });
     }
 
     const data = snapshot.val();
-    const verifiers = Object.keys(data).map((key) => {
+    const verifiers = Object.keys(data).map(key => {
       const v = data[key];
+      // don't send password
       return {
-        id: key,
-        name: v.name || '',
-        email: v.email || '',
-        department: v.department || '',
-        employeeId: v.employeeId || '',
+        id: v.id,
+        name: v.name,
+        email: v.email,
+        phone: v.phone,
+        department: v.department,
+        employeeId: v.employeeId,
         role: v.role || 'verifier',
-        createdAt: v.createdAt || null,
+        createdAt: v.createdAt,
         lastLogin: v.lastLogin || null,
       };
     });
 
-    // Sort by creation date descending
-    verifiers.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-
     return res.status(200).json({ verifiers });
   } catch (error) {
     console.error('Error in listVerifiers:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+const updateVerifier = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, email, password, department, employeeId } = req.body;
+    
+    const db = admin.database();
+    const verifierRef = db.ref(`Verifiers/${id}`);
+    const snapshot = await verifierRef.once('value');
+
+    if (!snapshot.exists()) {
+      return res.status(404).json({ error: 'Verifier not found' });
+    }
+
+    const updates = { name, email, department, employeeId };
+    
+    if (password) {
+      const salt = await bcrypt.genSalt(10);
+      updates.password = await bcrypt.hash(password, salt);
+    }
+
+    await verifierRef.update(updates);
+
+    return res.status(200).json({ message: 'Verifier updated successfully' });
+  } catch (error) {
+    console.error('Error in updateVerifier:', error);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+const updateVerifierRole = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+    
+    if (!role) {
+      return res.status(400).json({ error: 'Role is required' });
+    }
+
+    const db = admin.database();
+    const verifierRef = db.ref(`Verifiers/${id}`);
+    const snapshot = await verifierRef.once('value');
+
+    if (!snapshot.exists()) {
+      return res.status(404).json({ error: 'Verifier not found' });
+    }
+
+    await verifierRef.update({ role });
+
+    return res.status(200).json({ message: 'Verifier role updated successfully' });
+  } catch (error) {
+    console.error('Error in updateVerifierRole:', error);
+    return res.status(500).json({ error: 'Internal Server Error' });
   }
 };
 
@@ -472,4 +558,6 @@ module.exports = {
   listVerifiers,
   createVerifier,
   deleteVerifier,
+  updateVerifier,
+  updateVerifierRole
 };
