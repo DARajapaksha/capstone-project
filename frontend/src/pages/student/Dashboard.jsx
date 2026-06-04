@@ -59,6 +59,7 @@ const Dashboard = () => {
             const statusVal = enrollment.verificationStatus || 'pending';
             const verified = statusVal === 'verified';
             const rejected = statusVal === 'rejected';
+            const underReview = statusVal === 'review';
 
             let statusText = 'Verify Required';
             let statusColor = 'bg-[#F0B100] text-white';
@@ -70,6 +71,11 @@ const Dashboard = () => {
               statusColor = 'bg-[#00C950] text-white';
               borderColor = 'border-gray-200';
               Icon = ShieldCheck;
+            } else if (underReview) {
+              statusText = 'Pending Review';
+              statusColor = 'bg-[#3B82F6] text-white';
+              borderColor = 'border-[#93C5FD]';
+              Icon = Clock;
             } else if (rejected) {
               statusText = 'Verification Rejected';
               statusColor = 'bg-[#DC2626] text-white';
@@ -88,7 +94,9 @@ const Dashboard = () => {
               borderColor: borderColor,
               statusIcon: Icon,
               actionIcon: Icon,
-              isVerified: verified
+              isVerified: verified,
+              isUnderReview: underReview,
+              txHash: profile?.blockchainTxHash || null
             };
           });
           joined.sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -286,7 +294,17 @@ const Dashboard = () => {
                       <Calendar size={16} className="text-gray-500" />
                       <span>{exam.date} • {exam.time}</span>
                     </div>
-                    {!exam.isVerified && (
+
+                    {exam.isVerified && exam.txHash && (
+                      <div className="mt-2 mb-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                        <p className="text-xs text-gray-500 font-medium mb-1">Blockchain Tx Hash:</p>
+                        <a href={`https://amoy.polygonscan.com/tx/${exam.txHash}`} target="_blank" rel="noopener noreferrer" className="text-xs font-mono text-indigo-600 hover:text-indigo-800 break-all underline flex items-center gap-1">
+                          {exam.txHash}
+                        </a>
+                      </div>
+                    )}
+
+                    {!exam.isVerified && !exam.isUnderReview && (
                       <button
                         onClick={() => navigate('/verification', { state: { examId: exam.id, examCode: exam.code } })}
                         className="w-full px-4 py-2 bg-[#5B47FB] text-white rounded-lg font-medium hover:opacity-90 transition flex items-center justify-center gap-2"
@@ -294,6 +312,12 @@ const Dashboard = () => {
                         <exam.actionIcon size={16} />
                         {exam.status === 'Verification Rejected' ? 'Retry Verification for this Exam' : 'Verify Identity for this Exam'}
                       </button>
+                    )}
+                    {exam.isUnderReview && (
+                      <div className="w-full px-4 py-2 bg-blue-50 text-blue-700 rounded-lg font-medium border border-blue-100 flex items-center justify-center gap-2 text-sm">
+                        <Clock size={16} />
+                        Awaiting Manual Review
+                      </div>
                     )}
                   </div>
                 ))}

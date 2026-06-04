@@ -25,11 +25,10 @@ export default function VerificationPage() {
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [selfieImage, setSelfieImage] = useState(null);
 
-  // ── NEW: Step 3 liveness states ──────────────────────────────────────────
+  // Step 3 liveness states
   // null = not started, 'checking' = recording, 'live' = passed, 'fake' = failed
   const [livenessStatus, setLivenessStatus] = useState(null);
   const [livenessFrameCount, setLivenessFrameCount] = useState(0);
-  // ─────────────────────────────────────────────────────────────────────────
 
   // Step 4 states
   const [isProcessing, setIsProcessing] = useState(false);
@@ -39,11 +38,10 @@ export default function VerificationPage() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
 
-  // ── NEW: Separate refs for Step 3 liveness camera ────────────────────────
+  // Separate refs for Step 3 liveness camera
   const livenessVideoRef = useRef(null);
   const livenessCanvasRef = useRef(null);
-  const livenessStreamRef = useRef(null); // holds the stream so we can stop it
-  // ─────────────────────────────────────────────────────────────────────────
+  const livenessStreamRef = useRef(null);
 
   const stepRefs = useRef({});
 
@@ -78,18 +76,16 @@ export default function VerificationPage() {
     return () => stopCamera();
   }, [currentStep, selfieImage]);
 
-  // ── NEW: STEP 3 liveness camera lifecycle ─────────────────────────────────
+  // ── STEP 3 liveness camera lifecycle ─────────────────────────────────
   useEffect(() => {
     if (currentStep === 3 && livenessStatus !== 'live') {
       startLivenessCamera();
     }
-    // Stop liveness camera when leaving step 3
     if (currentStep !== 3) {
       stopLivenessCamera();
     }
     return () => stopLivenessCamera();
   }, [currentStep]);
-  // ─────────────────────────────────────────────────────────────────────────
 
 
   // ════════════════════════════════════════════════════════════════════════
@@ -110,12 +106,23 @@ export default function VerificationPage() {
     setIsCameraOpen(true);
     setSelfieImage(null);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: "user",
+          width:  { ideal: 1280, min: 640 },
+          height: { ideal: 720,  min: 480 },
+        }
+      });
       if (videoRef.current) videoRef.current.srcObject = stream;
     } catch (err) {
-      console.error('Error accessing camera:', err);
-      setIsCameraOpen(false);
-      alert('Could not access the camera. Please allow camera permissions in your browser.');
+      console.error("Error accessing camera:", err);
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+        if (videoRef.current) videoRef.current.srcObject = stream;
+      } catch (fallbackErr) {
+        setIsCameraOpen(false);
+        alert("Could not access the camera. Please allow camera permissions.");
+      }
     }
   };
 
@@ -140,9 +147,8 @@ export default function VerificationPage() {
   };
 
   // ════════════════════════════════════════════════════════════════════════
-  // STEP 3 — LIVENESS DETECTION  ← NEW REAL LOGIC
+  // STEP 3 — LIVENESS DETECTION
   // ════════════════════════════════════════════════════════════════════════
-
   const startLivenessCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
@@ -191,27 +197,23 @@ export default function VerificationPage() {
 
       const response = await fetch('http://localhost:5000/api/verification/liveness', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ frames })
       });
 
       const result = await response.json();
 
-      // FIX 1 — toLowerCase() handles both "Live" and "live"
       if (result.status?.toLowerCase() === 'live') {
         setLivenessStatus('live');
         stopLivenessCamera();
       } else {
         setLivenessStatus('fake');
-        stopLivenessCamera(); // FIX 2 — stop camera on failure too
+        stopLivenessCamera();
       }
     } catch (err) {
       console.error('Liveness check error:', err);
       setLivenessStatus('fake');
-      stopLivenessCamera(); // FIX 3 — stop camera on error too
+      stopLivenessCamera();
     }
   };
 
@@ -223,7 +225,7 @@ export default function VerificationPage() {
   };
 
   // ════════════════════════════════════════════════════════════════════════
-  // STEP 4 — AI PROCESSING  ← REAL API CALL, NO MORE FAKE setTimeout
+  // STEP 4 — AI PROCESSING
   // ════════════════════════════════════════════════════════════════════════
   const handleVerify = async () => {
     setIsProcessing(true);
@@ -233,12 +235,10 @@ export default function VerificationPage() {
       if (!user) throw new Error('Not logged in');
       const token = await user.getIdToken();
 
-      // Build FormData with ID image + selfie
       const formData = new FormData();
       if (idFile) formData.append('id_image', idFile);
       if (selfieImage) formData.append('selfie_image', base64ToBlob(selfieImage, 'image/jpeg'), 'selfie.jpg');
 
-      // This one call now: uploads images → calls Flask /verify → returns real result
       const uploadRes = await fetch('http://localhost:5000/api/verification/upload', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
@@ -252,23 +252,21 @@ export default function VerificationPage() {
 
       const { status, score, requestId: reqId } = await uploadRes.json();
 
-      // Build result object for Step 5 UI
       const now = new Date();
       const dateString = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       const timeString = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-      const mockHash = () => '0x' + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
-      const hash = status === 'success' ? mockHash() : null;
 
-      setVerificationResult({ status, score, date: `${dateString}, ${timeString}`, hash });
-
-      // Save final result to Firebase via backend
-      await fetch('http://localhost:5000/api/verification/result', {
+      const resultRes = await fetch('http://localhost:5000/api/verification/result', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ status, score, examId: examId || null, examCode, hash, requestId: reqId })
+        body: JSON.stringify({ status, score, examId: examId || null, examCode, requestId: reqId })
       });
+      const resultData = await resultRes.json();
 
-      nextStep(); // Move to Step 5
+      const hash = resultData.blockchainTxHash || null;
+
+      setVerificationResult({ status, score, date: `${dateString}, ${timeString}`, hash });
+      nextStep();
 
     } catch (err) {
       console.error('Verification error:', err);
@@ -290,7 +288,7 @@ export default function VerificationPage() {
     setIdFile(null);
     setSelfieImage(null);
     setVerificationResult(null);
-    setLivenessStatus(null);     // reset liveness
+    setLivenessStatus(null);
     setLivenessFrameCount(0);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -328,7 +326,6 @@ export default function VerificationPage() {
     pdf.save(`${examCode}-Certificate.pdf`);
   };
 
-  // Progress bar calculation
   let progressPercentage = 0;
   if (currentStep === 1) progressPercentage = selectedImage ? 20 : 0;
   else if (currentStep === 2) progressPercentage = selfieImage ? 40 : 20;
@@ -336,9 +333,6 @@ export default function VerificationPage() {
   else if (currentStep === 4) progressPercentage = 80;
   else if (currentStep === 5) progressPercentage = 100;
 
-  // ════════════════════════════════════════════════════════════════════════
-  // RENDER
-  // ════════════════════════════════════════════════════════════════════════
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans text-slate-800 overflow-x-hidden">
       <div className="max-w-4xl mx-auto">
@@ -429,6 +423,13 @@ export default function VerificationPage() {
                 </label>
               </div>
             )}
+            
+            {/* Step Navigation Button */}
+            {selectedImage && (
+              <button onClick={nextStep} className="mt-4 w-full py-3.5 bg-indigo-500 text-white font-medium rounded-xl hover:bg-indigo-600 transition-colors shadow-sm flex items-center justify-center gap-2">
+                Continue <ArrowRight className="w-4 h-4" />
+              </button>
+            )}
           </div>
         )}
 
@@ -463,9 +464,14 @@ export default function VerificationPage() {
                   <div className="relative w-full aspect-[4/3] md:aspect-video rounded-xl overflow-hidden shadow-sm border border-slate-200 bg-black mb-4">
                     <img src={selfieImage} alt="Captured Selfie" className="w-full h-full object-cover transform scale-x-[-1]" />
                   </div>
-                  <button onClick={() => { setSelfieImage(null); startCamera(); }} className="w-full py-3.5 bg-slate-100 text-slate-700 font-medium rounded-xl hover:bg-slate-200 transition-colors shadow-sm">
-                    Retake Photo
-                  </button>
+                  <div className="flex gap-4">
+                    <button onClick={() => { setSelfieImage(null); startCamera(); }} className="flex-1 py-3.5 bg-slate-100 text-slate-700 font-medium rounded-xl hover:bg-slate-200 transition-colors shadow-sm">
+                      Retake Photo
+                    </button>
+                    <button onClick={nextStep} className="flex-1 py-3.5 bg-indigo-500 text-white font-medium rounded-xl hover:bg-indigo-600 transition-colors shadow-sm flex items-center justify-center gap-2">
+                      Continue <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </div>
                 </>
               )}
               <canvas ref={canvasRef} className="hidden" />
@@ -483,8 +489,6 @@ export default function VerificationPage() {
             <p className="text-slate-500 text-sm mb-6">Follow the instructions to prove you're a real person</p>
 
             <div className="flex flex-col gap-4">
-              
-              {/* ALWAYS render the video element if status is not 'live' or 'fake' */}
               {(livenessStatus === null || livenessStatus === 'checking') && (
                 <div className="relative w-full aspect-[4/3] md:aspect-video rounded-xl overflow-hidden shadow-sm bg-black">
                   <video 
@@ -493,8 +497,6 @@ export default function VerificationPage() {
                     playsInline 
                     className="w-full h-full object-cover transform scale-x-[-1]" 
                   />
-                  
-                  {/* Overlay text that only renders during active recording */}
                   {livenessStatus === 'checking' && (
                     <div className="absolute bottom-4 left-0 right-0 flex justify-center">
                       <div className="bg-black/70 text-white text-xs px-4 py-2 rounded-full font-medium tracking-wide shadow-md backdrop-blur-sm">
@@ -505,7 +507,6 @@ export default function VerificationPage() {
                 </div>
               )}
 
-              {/* State: Not Started — Show instructions and initial action button */}
               {livenessStatus === null && (
                 <>
                   <div className="grid grid-cols-2 gap-3">
@@ -528,7 +529,6 @@ export default function VerificationPage() {
                 </>
               )}
 
-              {/* State: Checking / Processing Progress Indicator */}
               {livenessStatus === 'checking' && (
                 <div className="flex flex-col items-center gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl">
                   <div className="flex gap-1.5 justify-center">
@@ -547,16 +547,18 @@ export default function VerificationPage() {
                 </div>
               )}
 
-              {/* State: Live (Passed) */}
               {livenessStatus === 'live' && (
                 <div className="p-6 border border-green-100 rounded-xl bg-green-50/50 flex flex-col items-center text-center">
                   <CheckCircle className="w-12 h-12 text-green-500 mb-2" />
                   <h3 className="text-sm font-semibold text-green-900">Liveness Verification Passed</h3>
-                  <p className="text-xs text-green-600 mt-0.5">Real-time presence confirmed successfully.</p>
+                  <p className="text-xs text-green-600 mt-0.5 mb-4">Real-time presence confirmed successfully.</p>
+                  <button onClick={() => { nextStep(); handleVerify(); }} className="w-full py-3.5 bg-indigo-500 text-white font-medium rounded-xl hover:bg-indigo-600 transition-colors shadow-sm flex items-center justify-center gap-2">
+                    Proceed to AI Processing <ArrowRight className="w-4 h-4" />
+                  </button>
                 </div>
               )}
 
-              {/* State: Fake (Failed) */}
+
               {livenessStatus === 'fake' && (
                 <div className="p-6 border border-red-100 rounded-xl bg-red-50/50 flex flex-col items-center text-center">
                   <XCircle className="w-12 h-12 text-red-500 mb-2" />
@@ -571,7 +573,6 @@ export default function VerificationPage() {
                 </div>
               )}
 
-              {/* Hidden processing canvas */}
               <canvas ref={livenessCanvasRef} className="hidden" />
             </div>
           </div>
@@ -580,187 +581,100 @@ export default function VerificationPage() {
         {/* ── STEP 4: AI PROCESSING ─────────────────────────────────────────── */}
         {currentStep === 4 && (
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 mb-6">
-            <div className="flex items-center gap-2 mb-2">
-              <Brain className="w-5 h-5 text-slate-700" />
-              <h2 className="text-lg font-semibold text-slate-900">AI Processing</h2>
-            </div>
-            <p className="text-slate-500 text-sm mb-6">Our AI is analyzing your identity documents</p>
-            <div className="flex flex-col gap-4">
-              {isProcessing ? (
-                <div className="flex flex-col items-center justify-center p-10 rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-fuchsia-500 text-white text-center shadow-md animate-pulse min-h-[180px]">
-                  <RefreshCw className="w-10 h-10 text-white mb-3 animate-spin" />
-                  <h3 className="text-xl font-bold">Processing...</h3>
-                  <p className="text-indigo-100 text-sm mt-1">Comparing face with ID document</p>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center p-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-center shadow-md min-h-[180px]">
-                  <Brain className="w-16 h-16 text-white mb-4" />
-                  <h3 className="text-xl font-bold mb-1">Ready to Process</h3>
-                  <p className="text-indigo-100 text-sm">Click below to start AI verification</p>
-                </div>
-              )}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2">
-                <div className="flex flex-col items-center justify-center p-4 rounded-xl border border-blue-100 bg-blue-50/50">
-                  <Upload className="w-6 h-6 text-blue-500 mb-2" />
-                  <span className="text-xs font-semibold text-slate-700">ID Uploaded</span>
-                </div>
-                <div className="flex flex-col items-center justify-center p-4 rounded-xl border border-fuchsia-100 bg-fuchsia-50/50">
-                  <CameraIcon className="w-6 h-6 text-fuchsia-500 mb-2" />
-                  <span className="text-xs font-semibold text-slate-700">Selfie Captured</span>
-                </div>
-                <div className="flex flex-col items-center justify-center p-4 rounded-xl border border-green-100 bg-green-50/50">
-                  <Eye className="w-6 h-6 text-green-500 mb-2" />
-                  <span className="text-xs font-semibold text-slate-700">Liveness Verified</span>
-                </div>
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Brain className="w-16 h-16 text-indigo-500 animate-pulse mb-4" />
+              <h2 className="text-xl font-bold text-slate-900 mb-2">Analyzing Verification Data</h2>
+              <p className="text-slate-500 text-sm max-w-sm">
+                Our secure AI system is running cross-match facial checks and committing cryptographic ledger telemetry proofs.
+              </p>
+              <div className="mt-8 w-full max-w-xs bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                <div className="h-full bg-indigo-500 animate-infinite-loading rounded-full" style={{ width: '45%' }} />
               </div>
             </div>
           </div>
         )}
 
-        {/* ── STEP 5: VERIFICATION RESULT ───────────────────────────────────── */}
+        {/* ── STEP 5: VERIFICATION RESULT ────────────────────────────────────── */}
         {currentStep === 5 && verificationResult && (
-          <div id="certificate-content" className="bg-white rounded-2xl p-6 md:p-10 shadow-sm border border-slate-100 mb-6 flex flex-col items-center">
-            <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 shadow-sm border-4 border-white ${
-              verificationResult.status === 'success' ? 'bg-green-100 text-green-600' :
-              verificationResult.status === 'failed' ? 'bg-rose-100 text-rose-600' :
-              'bg-amber-100 text-amber-600'
-            }`}>
-              {verificationResult.status === 'success' && <CheckCircle className="w-10 h-10" />}
-              {verificationResult.status === 'failed' && <XCircle className="w-10 h-10" />}
-              {verificationResult.status === 'review' && <Clock className="w-10 h-10" />}
-            </div>
-
-            <h2 className="text-2xl font-bold text-slate-900 mb-2 flex items-center gap-2">
-              {verificationResult.status === 'success' && <>Identity Verified <Check className="w-5 h-5 text-slate-900" /></>}
-              {verificationResult.status === 'failed' && 'Verification Failed'}
-              {verificationResult.status === 'review' && 'Flagged for Manual Review'}
-            </h2>
-            <p className="text-slate-500 text-center max-w-md mb-8">
-              {verificationResult.status === 'success' && `Your identity has been verified for exam ${examCode}. AI confidence score: ${verificationResult.score}%`}
-              {verificationResult.status === 'failed' && `AI verification failed due to low confidence score (${verificationResult.score}%). Please ensure your ID and selfie are clear and try again.`}
-              {verificationResult.status === 'review' && `AI detected some uncertainties (confidence: ${verificationResult.score}%). Your case has been flagged for manual review. You'll be notified within 24 hours.`}
-            </p>
-
-            <div className="w-full max-w-md flex flex-col gap-3 mb-6">
-              <div className="flex justify-between items-center p-4 bg-slate-50 rounded-xl border border-slate-100">
-                <span className="text-slate-600 font-medium">Face Match Score</span>
-                <span className={`px-2.5 py-1 text-xs font-bold rounded-lg ${
-                  verificationResult.status === 'success' ? 'bg-indigo-500 text-white' :
-                  verificationResult.status === 'failed' ? 'bg-rose-500 text-white' :
-                  'bg-slate-200 text-slate-700'
-                }`}>{verificationResult.score}%</span>
-              </div>
-              <div className="flex justify-between items-center p-4 bg-slate-50 rounded-xl border border-slate-100">
-                <span className="text-slate-600 font-medium">Liveness Detection</span>
-                <span className="px-2.5 py-1 text-xs font-bold bg-green-500 text-white rounded-lg">PASSED</span>
-              </div>
-              <div className="flex justify-between items-center p-4 bg-slate-50 rounded-xl border border-slate-100">
-                <span className="text-slate-600 font-medium">Verification Date</span>
-                <span className="text-slate-900 font-medium text-sm text-right leading-tight max-w-[120px]">{verificationResult.date}</span>
-              </div>
-              {verificationResult.status === 'success' && (
-                <div className="flex flex-col p-4 bg-slate-50 rounded-xl border border-slate-100">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-slate-600 font-medium">Blockchain Transaction Hash</span>
-                    <button className="text-slate-400 hover:text-slate-600"><Copy className="w-4 h-4" /></button>
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 mb-6 animate-fade-in">
+            <div className="flex flex-col items-center text-center mb-8">
+              {verificationResult.status === 'success' ? (
+                <>
+                  <div className="w-16 h-16 bg-green-100 text-green-600 rounded-2xl flex items-center justify-center mb-4 shadow-inner">
+                    <ShieldCheck className="w-10 h-10" />
                   </div>
-                  <span className="text-xs font-mono text-slate-500 break-all">{verificationResult.hash}</span>
-                  <p className="text-[10px] text-slate-400 mt-3">Your verification has been recorded on the blockchain for permanent, tamper-proof validation</p>
-                </div>
+                  <h2 className="text-2xl font-bold text-slate-900">Verification Successful</h2>
+                  <p className="text-slate-500 text-sm mt-1">Your identity has been authenticated and secured on-chain.</p>
+                </>
+              ) : (
+                <>
+                  <div className="w-16 h-16 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center mb-4 shadow-inner">
+                    <XCircle className="w-10 h-10" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-slate-900">Verification Refused</h2>
+                  <p className="text-slate-500 text-sm mt-1">Facial parity criteria or data compliance check dropped below acceptable threshold margins.</p>
+                </>
               )}
             </div>
 
-            <div className={`w-full max-w-md flex items-start gap-3 p-4 rounded-xl border mb-8 ${
-              verificationResult.status === 'success' ? 'bg-green-50 border-green-200 text-green-800' :
-              verificationResult.status === 'failed' ? 'bg-rose-50 border-rose-200 text-rose-800' :
-              'bg-amber-50 border-amber-200 text-amber-800'
-            }`}>
-              {verificationResult.status === 'success' && <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 shrink-0" />}
-              {verificationResult.status === 'failed' && <XCircle className="w-5 h-5 text-rose-600 mt-0.5 shrink-0" />}
-              {verificationResult.status === 'review' && <Clock className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />}
-              <div>
-                <h3 className="text-sm font-semibold mb-1">
-                  {verificationResult.status === 'success' && 'Identity Verified'}
-                  {verificationResult.status === 'failed' && 'Verification Failed'}
-                  {verificationResult.status === 'review' && 'Pending Review'}
-                </h3>
-                <p className={`text-xs ${
-                  verificationResult.status === 'success' ? 'text-green-700' :
-                  verificationResult.status === 'failed' ? 'text-rose-700' :
-                  'text-amber-700'
-                }`}>
-                  {verificationResult.status === 'success' && `You're now verified for exam ${examCode} and can proceed`}
-                  {verificationResult.status === 'failed' && 'Please ensure good lighting and clear photos'}
-                  {verificationResult.status === 'review' && 'A specialist will review your submission. Check your email for updates'}
-                </p>
+            <div className="border border-slate-100 rounded-2xl bg-slate-50/50 p-5 mb-6 space-y-4">
+              <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+                <span className="text-slate-500 text-sm">Exam Allocation</span>
+                <span className="font-semibold text-slate-800 text-sm">{examCode}</span>
+              </div>
+              <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+                <span className="text-slate-500 text-sm">Match Confidence Index</span>
+                <span className={`font-bold text-sm ${verificationResult.status === 'success' ? 'text-green-600' : 'text-red-500'}`}>
+                  {verificationResult.score}%
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 text-sm">Timestamp</span>
+                <span className="text-slate-700 font-medium text-sm">{verificationResult.date}</span>
               </div>
             </div>
 
-            <div className="w-full max-w-md flex flex-col gap-3">
-              {verificationResult.status === 'success' && (
-                <>
-                  <button onClick={downloadCertificate} className="w-full py-3.5 bg-white border border-slate-300 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-colors shadow-sm flex items-center justify-center gap-2">
-                    <FileText className="w-4 h-4" /> Download Certificate
+            {verificationResult.status === 'success' && verificationResult.hash && (
+              <div className="flex flex-col p-4 bg-slate-50 rounded-xl border border-slate-100">
+                <div className="flex items-center gap-2 text-slate-500 text-xs font-semibold mb-1.5 uppercase tracking-wider">
+                  <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" /> Immutable Integrity Hash
+                </div>
+                <div className="flex items-center justify-between gap-3 bg-white border border-slate-200 rounded-lg p-2.5 shadow-sm">
+                  <span className="font-mono text-xs text-slate-600 truncate selection:bg-indigo-100">
+                    {verificationResult.hash}
+                  </span>
+                  <button 
+                    onClick={() => {
+                      navigator.clipboard.writeText(verificationResult.hash);
+                    }} 
+                    className="p-1.5 hover:bg-slate-50 rounded text-slate-400 hover:text-slate-600 active:scale-95 transition-transform shrink-0"
+                    title="Copy hash"
+                  >
+                    <Copy className="w-4 h-4" />
                   </button>
-                  <button onClick={() => navigate('/student')} className="w-full py-3.5 bg-indigo-500 text-white font-medium rounded-xl hover:bg-indigo-600 transition-colors shadow-sm flex items-center justify-center gap-2">
-                    <Home className="w-4 h-4" /> Go to Profile
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-3 mt-8">
+              {verificationResult.status === 'success' ? (
+                <>
+                  <button onClick={downloadCertificate} className="flex-1 py-3.5 bg-indigo-500 text-white font-medium rounded-xl hover:bg-indigo-600 transition-colors shadow-sm flex items-center justify-center gap-2 text-sm">
+                    <FileText className="w-4 h-4" /> Download Certificate Passport
+                  </button>
+                  <button onClick={() => navigate('/student')} className="flex-1 py-3.5 bg-slate-100 text-slate-700 font-medium rounded-xl hover:bg-slate-200 transition-colors shadow-sm flex items-center justify-center gap-2 text-sm">
+                    <Home className="w-4 h-4" /> Dashboard Home
                   </button>
                 </>
-              )}
-              {verificationResult.status === 'failed' && (
-                <>
-                  <button onClick={handleTryAgain} className="w-full py-3.5 bg-indigo-500 text-white font-medium rounded-xl hover:bg-indigo-600 transition-colors shadow-sm flex items-center justify-center gap-2">
-                    <RefreshCw className="w-4 h-4" /> Try Again
-                  </button>
-                  <button onClick={() => navigate('/student')} className="w-full py-3.5 bg-white border border-slate-300 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-colors shadow-sm flex items-center justify-center gap-2">
-                    <Home className="w-4 h-4" /> Go to Profile
-                  </button>
-                </>
-              )}
-              {verificationResult.status === 'review' && (
-                <button onClick={() => navigate('/student')} className="w-full py-3.5 bg-white border border-slate-300 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-colors shadow-sm flex items-center justify-center gap-2">
-                  <Home className="w-4 h-4" /> Go to Profile
+              ) : (
+                <button onClick={handleTryAgain} className="w-full py-3.5 bg-indigo-500 text-white font-medium rounded-xl hover:bg-indigo-600 transition-colors shadow-sm flex items-center justify-center gap-2 text-sm">
+                  <RefreshCw className="w-4 h-4" /> Restart Verification Pipeline
                 </button>
               )}
             </div>
           </div>
         )}
 
-        {/* Bottom Navigation */}
-        {currentStep < 5 && (
-          <div className="flex justify-between items-center mt-8">
-            <button
-              onClick={prevStep}
-              disabled={isProcessing}
-              className={`flex items-center gap-2 px-6 py-2.5 font-medium rounded-lg transition-colors ${
-                currentStep === 1 ? 'invisible' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 shadow-sm disabled:opacity-50'
-              }`}
-            >
-              <ArrowLeft className="w-4 h-4" /> Previous
-            </button>
-
-            <button
-              onClick={currentStep === 4 ? handleVerify : nextStep}
-              disabled={
-                (currentStep === 1 && !selectedImage) ||
-                (currentStep === 2 && !selfieImage) ||
-                (currentStep === 3 && livenessStatus !== 'live') || // ← Next locked until liveness passes
-                isProcessing
-              }
-              className="flex items-center gap-2 px-6 py-2.5 bg-indigo-500 text-white font-medium rounded-lg hover:bg-indigo-600 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed min-w-[140px] justify-center"
-            >
-              {isProcessing ? (
-                <>Processing <RefreshCw className="w-4 h-4 animate-spin" /></>
-              ) : currentStep === 4 ? (
-                <>Verify Identity <ShieldCheck className="w-4 h-4" /></>
-              ) : (
-                <>Next <ArrowRight className="w-4 h-4" /></>
-              )}
-            </button>
-          </div>
-        )}
-
-        <div className="text-center mt-8 text-xs text-slate-400">v{packageInfo.version}</div>
       </div>
     </div>
   );
