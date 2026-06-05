@@ -446,6 +446,9 @@ const listVerifiers = async (req, res) => {
 
     const verifiers = snapshot.docs.map(doc => {
       const v = doc.data();
+      const lastLoginTs = v.lastLogin && v.lastLogin.toDate ? v.lastLogin.toDate().toISOString() : (v.lastLogin || null);
+      const createdAtTs = v.createdAt && v.createdAt.toDate ? v.createdAt.toDate().toISOString() : (v.createdAt || null);
+
       return {
         id: v.id || doc.id,
         name: v.name,
@@ -454,8 +457,8 @@ const listVerifiers = async (req, res) => {
         department: v.department,
         employeeId: v.employeeId,
         role: v.role || 'verifier',
-        createdAt: v.createdAt,
-        lastLogin: v.lastLogin || null,
+        createdAt: createdAtTs,
+        lastLogin: lastLoginTs,
       };
     });
 
