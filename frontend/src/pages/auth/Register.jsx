@@ -113,15 +113,24 @@ const Register = () => {
       const data = await response.json();
 
       if (response.ok) {
-        alert("Account created successfully!");
-        setEmail("");
-        setPassword("");
-        setConfirmPassword("");
-        setName("");
-        setStudentId("");
-        setNic("");
-        setOtp("");
-        setShowOtpModal(false);
+        // Auto-login: call the login API immediately after registration
+        try {
+          const loginResponse = await fetch(`http://${window.location.hostname}:5000/api/auth/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: cleanEmail, password }),
+          });
+          const loginData = await loginResponse.json();
+          if (loginResponse.ok) {
+            localStorage.setItem("token", loginData.token);
+            await refreshProfile();
+            navigate("/student");
+            return;
+          }
+        } catch (autoLoginErr) {
+          console.warn("Auto-login failed, redirecting to login page:", autoLoginErr);
+        }
+        // Fallback: if auto-login fails for any reason, go to login page
         navigate("/login");
       } else {
         alert(data.error || "Something went wrong");

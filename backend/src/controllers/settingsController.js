@@ -26,17 +26,17 @@ const defaultSettings = {
 
 const getSettings = async (req, res) => {
   try {
-    const db = admin.database();
-    const settingsRef = db.ref('SystemSettings');
-    const snapshot = await settingsRef.once('value');
+    const db = admin.firestore();
+    const settingsRef = db.collection('SystemSettings').doc('config');
+    const doc = await settingsRef.get();
 
-    if (!snapshot.exists()) {
+    if (!doc.exists) {
       // Create defaults if they don't exist
       await settingsRef.set(defaultSettings);
       return res.status(200).json(defaultSettings);
     }
 
-    return res.status(200).json(snapshot.val());
+    return res.status(200).json(doc.data());
   } catch (error) {
     console.error('Error fetching settings:', error);
     return res.status(500).json({ error: 'Internal Server Error' });
@@ -47,8 +47,8 @@ const updateSettings = async (req, res) => {
   try {
     const { notifications, security, blockchain, credentials } = req.body;
 
-    const db = admin.database();
-    const settingsRef = db.ref('SystemSettings');
+    const db = admin.firestore();
+    const settingsRef = db.collection('SystemSettings').doc('config');
 
     // Only update provided sections
     const updates = {};
@@ -57,10 +57,10 @@ const updateSettings = async (req, res) => {
     if (blockchain) updates.blockchain = blockchain;
     if (credentials) updates.credentials = credentials;
 
-    await settingsRef.update(updates);
+    await settingsRef.set(updates, { merge: true });
 
-    const snapshot = await settingsRef.once('value');
-    return res.status(200).json({ message: 'Settings updated successfully', settings: snapshot.val() });
+    const doc = await settingsRef.get();
+    return res.status(200).json({ message: 'Settings updated successfully', settings: doc.data() });
   } catch (error) {
     console.error('Error updating settings:', error);
     return res.status(500).json({ error: 'Internal Server Error' });

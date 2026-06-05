@@ -28,36 +28,31 @@ const NotificationsDropdown = ({ onClose, onUnreadChange }) => {
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, [onClose]);
 
-  // Firebase Real-time listeners
+  // Fetch notifications from REST API
   useEffect(() => {
-    const auth = getAuth();
-    let unsubEnrollments = null;
-    let unsubExams = null;
+    const fetchNotifications = async () => {
+      const auth = getAuth();
+      const user = auth.currentUser;
+      const token = localStorage.getItem('token');
 
-    const unsubAuth = auth.onAuthStateChanged((user) => {
-      if (!user) {
+      if (!user || !token) {
         setNotifications([]);
         onUnreadChange?.(0);
         return;
       }
 
-      const enrollmentsRef = ref(db, `Enrollments/${user.uid}`);
-      unsubEnrollments = onValue(enrollmentsRef, (enrollSnap) => {
-        if (!enrollSnap.exists()) {
-          setNotifications([]);
-          return;
-        }
-        
-        const enrollments = enrollSnap.val();
-        const examIds = Object.keys(enrollments);
+      try {
+        const response = await fetch(`http://${window.location.hostname}:5000/api/user/home`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
 
-        const examsRef = ref(db, 'Exams');
-        unsubExams = onValue(examsRef, (examsSnap) => {
-          if (!examsSnap.exists()) return;
-          const allExams = examsSnap.val();
-          
+        if (response.ok) {
+          const data = await response.json();
+          let generatedNotifs = [];
+
+          // Add Login notification
           const lastSignIn = user.metadata?.lastSignInTime ? new Date(user.metadata.lastSignInTime) : new Date();
-          let generatedNotifs = [{
+          generatedNotifs.push({
             id: `login-${lastSignIn.getTime()}`,
             type: 'info',
             icon: CheckCircle2,
@@ -67,16 +62,15 @@ const NotificationsDropdown = ({ onClose, onUnreadChange }) => {
             body: 'You have successfully logged into the system.',
             time: 'Recently',
             timestamp: lastSignIn.getTime(),
-            actionUrl: '/dashboard'
-          }];
+            actionUrl: '/student/dashboard' // Changed from /dashboard
+          });
 
-          examIds.forEach(examId => {
-            const enrollment = enrollments[examId];
-            const exam = allExams[examId];
-            if (!exam) return;
-
+          // Process Enrolled Exams (Upcoming)
+          const upcomingExams = data.myExams?.upcoming || [];
+          upcomingExams.forEach(exam => {
+            const examId = exam.id;
             const examName = exam.courseCode || exam.courseName || 'Exam';
-            const verified = (enrollment.verificationStatus || 'pending') === 'verified';
+            const verified = (exam.verificationStatus || 'pending') === 'verified';
 
             // Verification notification
             if (verified) {
@@ -89,8 +83,8 @@ const NotificationsDropdown = ({ onClose, onUnreadChange }) => {
                 title: 'Verification Successful',
                 body: `Your identity has been verified for ${examName}`,
                 time: 'Recently',
-                timestamp: new Date(enrollment.enrolledAt || Date.now()).getTime() + 1000,
-                actionUrl: '/dashboard'
+                timestamp: new Date(exam.enrolledAt || Date.now()).getTime() + 1000,
+                actionUrl: '/student/dashboard'
               });
             } else {
               generatedNotifs.push({
@@ -102,7 +96,7 @@ const NotificationsDropdown = ({ onClose, onUnreadChange }) => {
                 title: 'Verification Required',
                 body: `Your identity verification is required for ${examName}`,
                 time: 'Action Needed',
-                timestamp: new Date(enrollment.enrolledAt || Date.now()).getTime(),
+                timestamp: new Date(exam.enrolledAt || Date.now()).getTime(),
                 actionUrl: '/verification',
                 actionState: { examId, examCode: exam.courseCode || examName }
               });
@@ -123,7 +117,7 @@ const NotificationsDropdown = ({ onClose, onUnreadChange }) => {
                   body: `${examName} starts in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}`,
                   time: exam.date,
                   timestamp: examDate.getTime() - (30 * 24 * 60 * 60 * 1000), // Sort it properly
-                  actionUrl: '/dashboard'
+                  actionUrl: '/student/dashboard'
                 });
               }
             }
@@ -132,15 +126,13 @@ const NotificationsDropdown = ({ onClose, onUnreadChange }) => {
           // Sort by timestamp descending
           generatedNotifs.sort((a, b) => b.timestamp - a.timestamp);
           setNotifications(generatedNotifs);
-        });
-      });
-    });
-
-    return () => {
-      unsubAuth();
-      if (unsubEnrollments) unsubEnrollments();
-      if (unsubExams) unsubExams();
+        }
+      } catch (error) {
+        console.error("Error fetching notifications:", error);
+      }
     };
+
+    fetchNotifications();
   }, []);
 
   // Update parent with unread count whenever notifications or read status changes

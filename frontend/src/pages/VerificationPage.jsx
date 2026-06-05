@@ -203,54 +203,50 @@ export default function VerificationPage() {
 
       const result = await response.json();
 
-      if (result.status?.toLowerCase() === 'live') {
-        setLivenessStatus('live');
-        stopLivenessCamera();
+      const aiData = await aiRes.json();
+      console.log('AI Service Response:', aiData);
+
+      // --- Step 4: Derive outcome from real AI results ---
+      // face_match.py returns { match, face_score (0-1), distance, threshold }
+      // liveness.py returns { status: "Live"|"Fake", blink_detected, movement_detected }
+      const faceScore = Math.round((aiData.face_match?.face_score ?? 0) * 100);
+
+      let outcome;
+      if (faceScore < 50) {
+        outcome = 'failed';
+      } else if (faceScore >= 50 && faceScore < 75) {
+        outcome = 'review';
       } else {
-        setLivenessStatus('fake');
-        stopLivenessCamera();
-      }
-    } catch (err) {
-      console.error('Liveness check error:', err);
-      setLivenessStatus('fake');
-      stopLivenessCamera();
-    }
-  };
-
-  const retryLiveness = () => {
-    setLivenessStatus(null);
-    setLivenessFrameCount(0);
-    stopLivenessCamera();
-    startLivenessCamera();
-  };
-
-  // ════════════════════════════════════════════════════════════════════════
-  // STEP 4 — AI PROCESSING
-  // ════════════════════════════════════════════════════════════════════════
-  const handleVerify = async () => {
-    setIsProcessing(true);
-    try {
-      const auth = getAuth();
-      const user = auth.currentUser;
-      if (!user) throw new Error('Not logged in');
-      const token = await user.getIdToken();
-
-      const formData = new FormData();
-      if (idFile) formData.append('id_image', idFile);
-      if (selfieImage) formData.append('selfie_image', base64ToBlob(selfieImage, 'image/jpeg'), 'selfie.jpg');
-
-      const uploadRes = await fetch('http://localhost:5000/api/verification/upload', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData
-      });
-
-      if (!uploadRes.ok) {
-        const errData = await uploadRes.json();
-        throw new Error(errData.error || 'Verification failed');
+        outcome = 'success';
       }
 
-      const { status, score, requestId: reqId } = await uploadRes.json();
+      // --- Step 5: Record the result in the Node.js backend ---
+      let realHash = null;
+      try {
+        const user = getAuth().currentUser;
+        if (user) {
+          const token = await user.getIdToken();
+          const res = await fetch(`http://${window.location.hostname}:5000/api/verification/result`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ 
+              status: outcome, 
+              score: faceScore, 
+              examId: examId || null, 
+              examCode, 
+              requestId: reqId,
+              idImage: outcome === 'review' ? nicImageBase64 : undefined,
+              selfieImage: outcome === 'review' ? selfieImageBase64 : undefined
+            })
+          });
+          const resultData = await res.json();
+          if (resultData.blockchainTxHash) {
+            realHash = resultData.blockchainTxHash;
+          }
+        }
+      } catch (err) {
+        console.error("Result sync failed:", err);
+      }
 
       const now = new Date();
       const dateString = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });

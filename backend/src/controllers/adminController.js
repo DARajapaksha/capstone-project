@@ -16,30 +16,29 @@ const adminLogin = async (req, res) => {
       return res.status(403).json({ error: 'Access denied: Invalid domain' });
     }
 
-    const db = admin.database();
-    const adminsRef = db.ref('Admins');
-    
-    // Find admin by email
-    const snapshot = await adminsRef.orderByChild('email').equalTo(email).once('value');
-    
-    if (!snapshot.exists()) {
+    const db = admin.firestore();
+
+    // Find admin by email in Firestore
+    const snapshot = await db.collection('Admins').where('email', '==', email).limit(1).get();
+
+    if (snapshot.empty) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const adminsData = snapshot.val();
-    const adminKey = Object.keys(adminsData)[0];
-    const adminUser = adminsData[adminKey];
+    const adminDoc = snapshot.docs[0];
+    const adminUser = adminDoc.data();
+    const adminKey = adminDoc.id;
 
     // Verify password
     const isPasswordValid = await bcrypt.compare(password, adminUser.password);
-    
+
     if (!isPasswordValid) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     // Update lastLogin
-    await adminsRef.child(adminKey).update({
-      lastLogin: admin.database.ServerValue.TIMESTAMP
+    await db.collection('Admins').doc(adminKey).update({
+      lastLogin: admin.firestore.FieldValue.serverTimestamp()
     });
 
     // Generate JWT
@@ -49,7 +48,6 @@ const adminLogin = async (req, res) => {
       { expiresIn: '12h' }
     );
 
-    // Return success
     return res.status(200).json({
       message: 'Login successful',
       token,
@@ -73,22 +71,23 @@ const adminLogin = async (req, res) => {
 
 const getAllVerifications = async (req, res) => {
   try {
-    const db = admin.database();
-    const verReqRef = db.ref('Verification_Requests');
-    const snapshot = await verReqRef.once('value');
-    
-    if (!snapshot.exists()) {
+    const db = admin.firestore();
+    const snapshot = await db.collection('Verification_Requests').get();
+
+    if (snapshot.empty) {
       return res.status(200).json({ verifications: [] });
     }
 
-    const verificationsData = snapshot.val();
-    const verificationsList = Object.keys(verificationsData).map(key => ({
-      id: key,
-      ...verificationsData[key]
-    }));
+    const verificationsList = snapshot.docs.map(doc => {
+      const d = doc.data();
+      return {
+        id: doc.id,
+        ...d,
+        timestamp: d.timestamp ? (d.timestamp.toMillis ? d.timestamp.toMillis() : d.timestamp) : null
+      };
+    });
 
-    // Optionally sort by timestamp descending
-    verificationsList.sort((a, b) => b.timestamp - a.timestamp);
+    verificationsList.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
     return res.status(200).json({ verifications: verificationsList });
   } catch (error) {
@@ -111,25 +110,24 @@ const updateVerificationStatus = async (req, res) => {
       return res.status(400).json({ error: 'Invalid status provided' });
     }
 
-    const db = admin.database();
-    const specificReqRef = db.ref(`Verification_Requests/${id}`);
-    
-    const snapshot = await specificReqRef.once('value');
-    if (!snapshot.exists()) {
+    const db = admin.firestore();
+    const reqRef = db.collection('Verification_Requests').doc(id);
+
+    const doc = await reqRef.get();
+    if (!doc.exists) {
       return res.status(404).json({ error: 'Verification request not found' });
     }
 
-    await specificReqRef.update({
+    await reqRef.update({
       status: status,
-      updatedAt: admin.database.ServerValue.TIMESTAMP
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
     });
 
     // Add entry to Audit_Log
-    const auditLogRef = db.ref('Audit_Log');
-    await auditLogRef.push({
+    await db.collection('Audit_log').add({
       userId: req.user ? (req.user.uid || req.user.userId) : 'admin',
       event: `Status Updated to ${status}`,
-      timestamp: admin.database.ServerValue.TIMESTAMP,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
       details: { requestId: id }
     });
 
@@ -154,24 +152,22 @@ const updateAdminProfile = async (req, res) => {
       return res.status(400).json({ error: 'Admin ID is required' });
     }
 
-    const db = admin.database();
-    const adminRef = db.ref(`Admins/${id}`);
-    
-    const snapshot = await adminRef.once('value');
-    if (!snapshot.exists()) {
+    const db = admin.firestore();
+    const adminRef = db.collection('Admins').doc(id);
+
+    const doc = await adminRef.get();
+    if (!doc.exists) {
       return res.status(404).json({ error: 'Admin not found' });
     }
 
-    // Update fields
     await adminRef.update({
-      name: name || snapshot.val().name,
+      name: name || doc.data().name,
       phone: phone || '',
       department: department || ''
     });
 
-    // Get updated data to return
-    const updatedSnapshot = await adminRef.once('value');
-    const updatedAdmin = updatedSnapshot.val();
+    const updatedDoc = await adminRef.get();
+    const updatedAdmin = updatedDoc.data();
 
     return res.status(200).json({
       message: 'Profile updated successfully',
@@ -195,19 +191,23 @@ const updateAdminProfile = async (req, res) => {
 
 const getAllStudents = async (req, res) => {
   try {
-    const db = admin.database();
-    const usersRef = db.ref('Users');
-    const snapshot = await usersRef.once('value');
-    
-    if (!snapshot.exists()) {
+    const db = admin.firestore();
+    const snapshot = await db.collection('Users').get();
+
+    if (snapshot.empty) {
       return res.status(200).json({ students: [] });
     }
 
-    const usersData = snapshot.val();
-    const studentsList = Object.keys(usersData).map(key => ({
-      id: key,
-      ...usersData[key]
-    }));
+    const studentsList = snapshot.docs.map(doc => {
+      const d = doc.data();
+      return {
+        id: doc.id,
+        ...d,
+        // Convert Firestore Timestamp to milliseconds so frontend can do new Date(createdAt)
+        createdAt: d.createdAt ? (d.createdAt.toMillis ? d.createdAt.toMillis() : d.createdAt) : null,
+        verifiedAt: d.verifiedAt ? (d.verifiedAt.toMillis ? d.verifiedAt.toMillis() : d.verifiedAt) : null,
+      };
+    });
 
     return res.status(200).json({ students: studentsList });
   } catch (error) {
@@ -218,22 +218,24 @@ const getAllStudents = async (req, res) => {
 
 const getAllAudits = async (req, res) => {
   try {
-    const db = admin.database();
-    const auditRef = db.ref('Audit_Log');
-    const snapshot = await auditRef.once('value');
-    
-    if (!snapshot.exists()) {
+    const db = admin.firestore();
+    // No .orderBy() to avoid needing a composite Firestore index — sort in JS instead
+    const snapshot = await db.collection('Audit_log').get();
+
+    if (snapshot.empty) {
       return res.status(200).json({ audits: [] });
     }
 
-    const auditData = snapshot.val();
-    const auditList = Object.keys(auditData).map(key => ({
-      id: key,
-      ...auditData[key]
-    }));
-
-    // Sort descending by timestamp
-    auditList.sort((a, b) => b.timestamp - a.timestamp);
+    const auditList = snapshot.docs
+      .map(doc => {
+        const d = doc.data();
+        return {
+          id: doc.id,
+          ...d,
+          timestamp: d.timestamp ? (d.timestamp.toMillis ? d.timestamp.toMillis() : d.timestamp) : null
+        };
+      })
+      .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
     return res.status(200).json({ audits: auditList });
   } catch (error) {
@@ -244,19 +246,14 @@ const getAllAudits = async (req, res) => {
 
 const getAllVerifiers = async (req, res) => {
   try {
-    const db = admin.database();
-    const adminsRef = db.ref('Admins');
-    const snapshot = await adminsRef.once('value');
-    
-    if (!snapshot.exists()) {
+    const db = admin.firestore();
+    const snapshot = await db.collection('Admins').get();
+
+    if (snapshot.empty) {
       return res.status(200).json({ verifiers: [] });
     }
 
-    const adminsData = snapshot.val();
-    const adminsList = Object.keys(adminsData).map(key => ({
-      id: key,
-      ...adminsData[key]
-    }));
+    const adminsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
     return res.status(200).json({ verifiers: adminsList });
   } catch (error) {
@@ -276,29 +273,27 @@ const updateStudentVerificationStatus = async (req, res) => {
       return res.status(400).json({ error: 'verificationStatus is required' });
     }
 
-    const db = admin.database();
-    const studentRef = db.ref(`Users/${id}`);
-    
-    const snapshot = await studentRef.once('value');
-    if (!snapshot.exists()) {
+    const db = admin.firestore();
+    const studentRef = db.collection('Users').doc(id);
+
+    const doc = await studentRef.get();
+    if (!doc.exists) {
       return res.status(404).json({ error: 'Student not found' });
     }
 
     const isVerified = verificationStatus === 'Verified';
 
-    // Update student verification status
     await studentRef.update({
       isVerified: isVerified,
       verificationStatus: verificationStatus,
-      verifiedAt: isVerified ? admin.database.ServerValue.TIMESTAMP : null
+      verifiedAt: isVerified ? admin.firestore.FieldValue.serverTimestamp() : null
     });
 
     // Add entry to Audit_Log
-    const auditLogRef = db.ref('Audit_Log');
-    await auditLogRef.push({
+    await db.collection('Audit_log').add({
       userId: req.user ? (req.user.uid || req.user.userId) : 'admin',
       event: `Manual Student Status: ${verificationStatus}`,
-      timestamp: admin.database.ServerValue.TIMESTAMP,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
       details: { studentId: id, newStatus: verificationStatus }
     });
 
