@@ -3,19 +3,14 @@ const admin = require('../config/firebase');
 // GET all exams
 const getAllExams = async (req, res) => {
   try {
-    const db = admin.database();
-    const examsRef = db.ref('Exams');
-    const snapshot = await examsRef.once('value');
+    const db = admin.firestore();
+    const snapshot = await db.collection('Exams').get();
 
-    if (!snapshot.exists()) {
+    if (snapshot.empty) {
       return res.status(200).json({ exams: [] });
     }
 
-    const examsData = snapshot.val();
-    const examsList = Object.keys(examsData).map(key => ({
-      id: key,
-      ...examsData[key]
-    }));
+    const examsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
     // Sort by date ascending
     examsList.sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -46,9 +41,8 @@ const createExam = async (req, res) => {
       return res.status(400).json({ error: 'courseCode, courseName, date, and time are required.' });
     }
 
-    const db = admin.database();
-    const examsRef = db.ref('Exams');
-    const newExamRef = examsRef.push();
+    const db = admin.firestore();
+    const newExamRef = db.collection('Exams').doc();
 
     const examData = {
       courseCode: courseCode.trim().toUpperCase(),
@@ -69,7 +63,7 @@ const createExam = async (req, res) => {
 
     return res.status(201).json({
       message: 'Exam created successfully',
-      exam: { id: newExamRef.key, ...examData }
+      exam: { id: newExamRef.id, ...examData }
     });
   } catch (error) {
     console.error('Error creating exam:', error);
@@ -87,11 +81,11 @@ const updateExam = async (req, res) => {
       return res.status(400).json({ error: 'Exam ID is required.' });
     }
 
-    const db = admin.database();
-    const examRef = db.ref(`Exams/${id}`);
-    const snapshot = await examRef.once('value');
+    const db = admin.firestore();
+    const examRef = db.collection('Exams').doc(id);
+    const examDoc = await examRef.get();
 
-    if (!snapshot.exists()) {
+    if (!examDoc.exists) {
       return res.status(404).json({ error: 'Exam not found.' });
     }
 
@@ -110,10 +104,10 @@ const updateExam = async (req, res) => {
 
     await examRef.update(filteredUpdates);
 
-    const updatedSnapshot = await examRef.once('value');
+    const updatedDoc = await examRef.get();
     return res.status(200).json({
       message: 'Exam updated successfully',
-      exam: { id, ...updatedSnapshot.val() }
+      exam: { id, ...updatedDoc.data() }
     });
   } catch (error) {
     console.error('Error updating exam:', error);
@@ -130,15 +124,15 @@ const deleteExam = async (req, res) => {
       return res.status(400).json({ error: 'Exam ID is required.' });
     }
 
-    const db = admin.database();
-    const examRef = db.ref(`Exams/${id}`);
-    const snapshot = await examRef.once('value');
+    const db = admin.firestore();
+    const examRef = db.collection('Exams').doc(id);
+    const examDoc = await examRef.get();
 
-    if (!snapshot.exists()) {
+    if (!examDoc.exists) {
       return res.status(404).json({ error: 'Exam not found.' });
     }
 
-    await examRef.remove();
+    await examRef.delete();
 
     return res.status(200).json({ message: 'Exam deleted successfully', id });
   } catch (error) {

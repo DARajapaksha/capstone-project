@@ -12,56 +12,48 @@ const MyExamsTab = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const auth = getAuth();
-    const user = auth.currentUser;
-    if (!user) { setLoading(false); return; }
-
-    // Listen to this user's enrollments
-    const enrollmentsRef = ref(db, `Enrollments/${user.uid}`);
-    const unsubEnrollments = onValue(enrollmentsRef, (enrollSnapshot) => {
-      if (!enrollSnapshot.exists()) {
-        setMyExams([]);
+    const fetchMyExams = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
         setLoading(false);
         return;
       }
 
-      const enrollments = enrollSnapshot.val();
-      const examIds = Object.keys(enrollments);
+      try {
+        const response = await fetch(`http://${window.location.hostname}:5000/api/user/home`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
 
-      // Listen to all exams to join data
-      const examsRef = ref(db, 'Exams');
-      const unsubExams = onValue(examsRef, (examsSnapshot) => {
-        setLoading(false);
-        const allExams = examsSnapshot.exists() ? examsSnapshot.val() : {};
-
-        const joined = examIds
-          .filter(examId => allExams[examId])
-          .map(examId => {
-          const enrollment = enrollments[examId];
-          const exam = allExams[examId];
-          return {
-            id: examId,
+        if (response.ok) {
+          const data = await response.json();
+          const upcoming = data.myExams?.upcoming || [];
+          const past = data.myExams?.past || [];
+          
+          const allExams = [...upcoming, ...past].map(exam => ({
+            id: exam.id,
             courseName: exam.courseName || 'Unknown Exam',
-            courseCode: exam.courseCode || examId,
+            courseCode: exam.courseCode || exam.id,
             date: exam.date || 'TBD',
             time: exam.time ? `${exam.time}` : 'TBD',
             duration: exam.duration ? `${exam.duration * 60} min` : 'TBD',
-            status: 'upcoming',
-            verificationStatus: enrollment.verificationStatus || 'pending',
-            enrolledAt: enrollment.enrolledAt,
-            verifiedAt: enrollment.verifiedAt || null,
-          };
-        });
+            status: 'upcoming', // Could check date to set 'past'
+            verificationStatus: exam.verificationStatus || 'pending',
+            enrolledAt: exam.enrolledAt,
+            verifiedAt: exam.verifiedAt || null,
+          }));
 
-        // Sort by exam date
-        joined.sort((a, b) => new Date(a.date) - new Date(b.date));
-        setMyExams(joined);
-      });
+          setMyExams(allExams);
+        }
+      } catch (err) {
+        console.error('Error fetching enrolled exams:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-      return () => unsubExams();
-    });
-
-    return () => unsubEnrollments();
+    fetchMyExams();
   }, []);
 
   const handleVerifyIdentity = () => {
@@ -70,12 +62,25 @@ const MyExamsTab = () => {
 
   const handleCancelEnrollment = async (examId) => {
     if (!window.confirm('Are you sure you want to cancel this enrollment?')) return;
-    const auth = getAuth();
-    const user = auth.currentUser;
-    if (!user) return;
+    
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
     try {
-      const enrollmentRef = ref(db, `Enrollments/${user.uid}/${examId}`);
-      await remove(enrollmentRef);
+      const res = await fetch(`http://${window.location.hostname}:5000/api/user/enroll/${examId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (res.ok) {
+        setMyExams(prev => prev.filter(exam => exam.id !== examId));
+        alert('Enrollment cancelled successfully.');
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to cancel enrollment.');
+      }
     } catch (err) {
       alert('Failed to cancel enrollment. Please try again.');
       console.error(err);

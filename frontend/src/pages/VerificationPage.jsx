@@ -205,16 +205,14 @@ export default function VerificationPage() {
       // face_match.py returns { match, face_score (0-1), distance, threshold }
       // liveness.py returns { status: "Live"|"Fake", blink_detected, movement_detected }
       const faceScore = Math.round((aiData.face_match?.face_score ?? 0) * 100);
-      const livenessOk = aiData.liveness?.status === 'Live';
-      const isVerified = aiData.verified === true;
 
       let outcome;
-      if (isVerified) {
-        outcome = 'success';
-      } else if (faceScore >= 60 && !livenessOk) {
+      if (faceScore < 50) {
+        outcome = 'failed';
+      } else if (faceScore >= 50 && faceScore < 75) {
         outcome = 'review';
       } else {
-        outcome = 'failed';
+        outcome = 'success';
       }
 
       // --- Step 5: Record the result in the Node.js backend ---
@@ -226,7 +224,15 @@ export default function VerificationPage() {
           const res = await fetch(`http://${window.location.hostname}:5000/api/verification/result`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ status: outcome, score: faceScore, examId: examId || null, examCode, requestId: reqId })
+            body: JSON.stringify({ 
+              status: outcome, 
+              score: faceScore, 
+              examId: examId || null, 
+              examCode, 
+              requestId: reqId,
+              idImage: outcome === 'review' ? nicImageBase64 : undefined,
+              selfieImage: outcome === 'review' ? selfieImageBase64 : undefined
+            })
           });
           const resultData = await res.json();
           if (resultData.blockchainTxHash) {

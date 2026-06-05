@@ -3,6 +3,13 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { purgeImageFields } = require('./verificationController');
 const blockchainService = require('../services/blockchainService');
+const cloudinary = require('cloudinary').v2;
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_for_development';
 
@@ -15,18 +22,16 @@ const verifierLogin = async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    const db = admin.database();
-    const verifiersRef = db.ref('Verifiers');
+    const db = admin.firestore();
+    const snapshot = await db.collection('Verifiers').where('email', '==', email).limit(1).get();
 
-    const snapshot = await verifiersRef.orderByChild('email').equalTo(email).once('value');
-
-    if (!snapshot.exists()) {
+    if (snapshot.empty) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const verifiersData = snapshot.val();
-    const verifierKey = Object.keys(verifiersData)[0];
-    const verifierUser = verifiersData[verifierKey];
+    const verifierDoc = snapshot.docs[0];
+    const verifierUser = verifierDoc.data();
+    const verifierKey = verifierDoc.id;
 
     const isPasswordValid = await bcrypt.compare(password, verifierUser.password);
     if (!isPasswordValid) {
@@ -34,8 +39,8 @@ const verifierLogin = async (req, res) => {
     }
 
     // Update lastLogin
-    await verifiersRef.child(verifierKey).update({
-      lastLogin: admin.database.ServerValue.TIMESTAMP,
+    await db.collection('Verifiers').doc(verifierKey).update({
+      lastLogin: admin.firestore.FieldValue.serverTimestamp(),
     });
 
     const token = jwt.sign(
@@ -68,15 +73,14 @@ const verifierLogin = async (req, res) => {
 const getVerifierProfile = async (req, res) => {
   try {
     const { id } = req.params;
-    const db = admin.database();
-    const verifierRef = db.ref(`Verifiers/${id}`);
-    const snapshot = await verifierRef.once('value');
+    const db = admin.firestore();
+    const doc = await db.collection('Verifiers').doc(id).get();
 
-    if (!snapshot.exists()) {
+    if (!doc.exists) {
       return res.status(404).json({ error: 'Verifier not found' });
     }
 
-    const v = snapshot.val();
+    const v = doc.data();
     return res.status(200).json({
       verifier: {
         id: v.id,
@@ -102,21 +106,21 @@ const updateVerifierProfile = async (req, res) => {
     const { id } = req.params;
     const { name, phone, department } = req.body;
 
-    const db = admin.database();
-    const verifierRef = db.ref(`Verifiers/${id}`);
-    const snapshot = await verifierRef.once('value');
+    const db = admin.firestore();
+    const verifierRef = db.collection('Verifiers').doc(id);
+    const doc = await verifierRef.get();
 
-    if (!snapshot.exists()) {
+    if (!doc.exists) {
       return res.status(404).json({ error: 'Verifier not found' });
     }
 
     await verifierRef.update({
-      name: name || snapshot.val().name,
+      name: name || doc.data().name,
       phone: phone || '',
       department: department || '',
     });
 
-    const updated = (await verifierRef.once('value')).val();
+    const updated = (await verifierRef.get()).data();
     return res.status(200).json({
       message: 'Profile updated',
       verifier: {
@@ -135,43 +139,43 @@ const updateVerifierProfile = async (req, res) => {
   }
 };
 
-// GET /api/verifier/queue  — pending verification requests joined with student data
+// GET /api/verifier/queue — pending verification requests joined with student data
 const getVerifierQueue = async (req, res) => {
   try {
-    const db = admin.database();
+    const db = admin.firestore();
 
     // Fetch all pending verification requests
-    const verReqRef = db.ref('Verification_Requests');
-    const snapshot = await verReqRef.orderByChild('status').equalTo('Pending').once('value');
+    const snapshot = await db.collection('Verification_Requests')
+      .where('status', '==', 'Pending')
+      .get();
 
-    if (!snapshot.exists()) {
+    if (snapshot.empty) {
       return res.status(200).json({ queue: [] });
     }
 
-    const rawRequests = snapshot.val();
-    const requestIds = Object.keys(rawRequests);
-
     // Fetch all students once for efficient joining
-    const usersSnapshot = await db.ref('Users').once('value');
-    const usersData = usersSnapshot.exists() ? usersSnapshot.val() : {};
+    const usersSnapshot = await db.collection('Users').get();
+    const usersData = {};
+    usersSnapshot.docs.forEach(doc => { usersData[doc.id] = doc.data(); });
 
-    const queue = requestIds.map((key) => {
-      const req = rawRequests[key];
-      const student = usersData[req.userId] || usersData[req.studentId] || {};
+    const queue = snapshot.docs.map((doc) => {
+      const r = doc.data();
+      const student = usersData[r.userId] || usersData[r.studentId] || {};
+      const ts = r.timestamp ? (r.timestamp.toMillis ? r.timestamp.toMillis() : r.timestamp) : null;
       return {
-        id: key,
-        userId: req.userId || req.studentId || '',
+        id: doc.id,
+        userId: r.userId || r.studentId || '',
         name: student.name || student.displayName || 'Unknown Student',
         nic: student.nic || student.nicNumber || '—',
         program: student.program || student.course || '—',
         email: student.email || '',
-        idImageUrl: req.idImageUrl || null,
-        selfieImageUrl: req.selfieImageUrl || null,
-        score: req.score || null,
-        status: req.status || 'Pending',
-        timestamp: req.timestamp || null,
-        submitted: req.timestamp
-          ? new Date(req.timestamp).toLocaleString('en-US', {
+        idImageUrl: r.idImageUrl || null,
+        selfieImageUrl: r.selfieImageUrl || null,
+        score: r.score || null,
+        status: r.status || 'Pending',
+        timestamp: ts,
+        submitted: ts
+          ? new Date(ts).toLocaleString('en-US', {
               year: 'numeric', month: '2-digit', day: '2-digit',
               hour: '2-digit', minute: '2-digit',
             })
@@ -182,35 +186,46 @@ const getVerifierQueue = async (req, res) => {
     // Sort newest first
     queue.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
-    return res.status(200).json({ queue });
+    // Deduplicate by userId to ensure we only show the latest pending request per student
+    const uniqueQueueMap = new Map();
+    queue.forEach(item => {
+      if (!uniqueQueueMap.has(item.userId)) {
+        uniqueQueueMap.set(item.userId, item);
+      }
+    });
+    
+    const uniqueQueue = Array.from(uniqueQueueMap.values());
+
+    return res.status(200).json({ queue: uniqueQueue });
   } catch (error) {
     console.error('Error in getVerifierQueue:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };
 
-// GET /api/verifier/history  — decisions made by this verifier
+// GET /api/verifier/history — decisions made by this verifier
 const getVerifierHistory = async (req, res) => {
   try {
     const verifierId = req.user.id || req.user.uid;
-    const db = admin.database();
+    const db = admin.firestore();
 
-    const verReqRef = db.ref('Verification_Requests');
-    const snapshot = await verReqRef.orderByChild('decidedBy').equalTo(verifierId).once('value');
+    const snapshot = await db.collection('Verification_Requests')
+      .where('decidedBy', '==', verifierId)
+      .get();
 
-    if (!snapshot.exists()) {
+    if (snapshot.empty) {
       return res.status(200).json({ history: [] });
     }
 
-    const rawData = snapshot.val();
-    const usersSnapshot = await db.ref('Users').once('value');
-    const usersData = usersSnapshot.exists() ? usersSnapshot.val() : {};
+    const usersSnapshot = await db.collection('Users').get();
+    const usersData = {};
+    usersSnapshot.docs.forEach(doc => { usersData[doc.id] = doc.data(); });
 
-    const history = Object.keys(rawData).map((key) => {
-      const item = rawData[key];
+    const history = snapshot.docs.map((doc) => {
+      const item = doc.data();
       const student = usersData[item.userId] || usersData[item.studentId] || {};
       return {
-        id: key,
+        id: doc.id,
         userId: item.userId || item.studentId || '',
         name: student.name || student.displayName || 'Unknown Student',
         nic: student.nic || student.nicNumber || '—',
@@ -246,21 +261,20 @@ const decideVerification = async (req, res) => {
       return res.status(400).json({ error: 'Decision must be Approved or Rejected' });
     }
 
-    const db = admin.database();
-    const reqRef = db.ref(`Verification_Requests/${id}`);
-    const snapshot = await reqRef.once('value');
+    const db = admin.firestore();
+    const reqRef = db.collection('Verification_Requests').doc(id);
+    const doc = await reqRef.get();
 
-    if (!snapshot.exists()) {
+    if (!doc.exists) {
       return res.status(404).json({ error: 'Verification request not found' });
     }
 
     const now = Date.now();
-    const reqData = snapshot.val();
+    const reqData = doc.data();
     const studentId = reqData.userId || reqData.studentId;
     const examId = reqData.examId;
 
-    // ── Step 1: Generate SHA-256 hash of verification event data ─────────────
-    // Raw biometric images are STRICTLY excluded — only metadata is hashed
+    // ── Step 1: Generate blockchain anchor ────────────────────────────────────
     let blockchainTxHash = null;
     try {
       const hashPayload = {
@@ -275,64 +289,108 @@ const decideVerification = async (req, res) => {
       console.log(`[Blockchain] Tx anchored: ${blockchainTxHash}`);
     } catch (bcErr) {
       console.error('[Blockchain] Anchoring failed (non-fatal):', bcErr.message);
-      // Non-fatal — continue with DB update even if blockchain is unavailable
     }
 
-    // ── Step 2: Update the verification request status ───────────────────────
+    // ── Step 2: Update the verification request status ────────────────────────
+    // Delete temporary images from Cloudinary if they exist
+    try {
+      if (reqData.idImagePublicId) {
+        await cloudinary.uploader.destroy(reqData.idImagePublicId);
+      }
+      if (reqData.selfieImagePublicId) {
+        await cloudinary.uploader.destroy(reqData.selfieImagePublicId);
+      }
+    } catch (err) {
+      console.error('Error deleting images from Cloudinary:', err);
+    }
+
     await reqRef.update({
       status: decision,
       decidedBy: verifierId,
       decidedByEmail: verifierEmail,
       decidedAt: now,
       verifierNotes: notes || '',
-      updatedAt: admin.database.ServerValue.TIMESTAMP,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       blockchainTxHash: blockchainTxHash || null,
-      // ── PDPA: clear any residual image fields ──
-      idImageUrl: null,
-      selfieImageUrl: null,
+      idImageUrl: admin.firestore.FieldValue.delete(),
+      selfieImageUrl: admin.firestore.FieldValue.delete(),
+      idImagePublicId: admin.firestore.FieldValue.delete(),
+      selfieImagePublicId: admin.firestore.FieldValue.delete(),
     });
 
-    // ── Step 3: PDPA — purge biometric image fields from DB ──────────────────
+    // ── Step 3: PDPA — purge biometric image fields ───────────────────────────
     await purgeImageFields(db, id);
 
-    // ── Step 4: Update student status ────────────────────────────────────────
+    // ── Step 3.5: Cancel other pending requests for this student ──────────────
+    if (studentId) {
+      const otherPending = await db.collection('Verification_Requests')
+        .where('userId', '==', studentId)
+        .where('status', '==', 'Pending')
+        .get();
+
+      if (!otherPending.empty) {
+        const batch = db.batch();
+        otherPending.docs.forEach(d => {
+          if (d.id !== id) {
+            batch.update(d.ref, {
+              status: 'Superseded',
+              updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+          }
+        });
+        await batch.commit();
+      }
+    }
+
+    // ── Step 4: Update student status ─────────────────────────────────────────
     if (studentId && decision === 'Approved') {
-      await db.ref(`Users/${studentId}`).update({
+      await db.collection('Users').doc(studentId).update({
         isVerified: true,
         verificationStatus: 'Verified',
-        verifiedAt: admin.database.ServerValue.TIMESTAMP,
+        verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
         blockchainTxHash: blockchainTxHash || null,
       });
       if (examId) {
-        await db.ref(`Enrollments/${studentId}/${examId}`).update({
+        await db.collection('Enrollments').doc(studentId).collection('exams').doc(examId).update({
           verificationStatus: 'verified',
-          verifiedAt: admin.database.ServerValue.TIMESTAMP
+          verifiedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        await db.collection('Student_Exams').doc(studentId).collection('exams').doc(examId).update({
+          verificationStatus: 'verified',
+          verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
+          txHash: blockchainTxHash || null
         });
       }
     } else if (studentId && decision === 'Rejected') {
-      await db.ref(`Users/${studentId}`).update({
+      await db.collection('Users').doc(studentId).update({
         verificationStatus: 'Rejected',
+        isVerified: false,
       });
       if (examId) {
-        await db.ref(`Enrollments/${studentId}/${examId}`).update({
-          verificationStatus: 'rejected'
+        await db.collection('Enrollments').doc(studentId).collection('exams').doc(examId).update({
+          verificationStatus: 'failed',
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        await db.collection('Student_Exams').doc(studentId).collection('exams').doc(examId).update({
+          verificationStatus: 'rejected',
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
         });
       }
     }
 
-    // ── Step 5: Audit logs ───────────────────────────────────────────────────
-    await db.ref('Audit_Log').push({
+    // ── Step 5: Audit logs ────────────────────────────────────────────────────
+    await db.collection('Audit_log').add({
       userId: verifierId,
       event: `Verifier ${decision} Verification`,
-      timestamp: admin.database.ServerValue.TIMESTAMP,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
       details: { requestId: id, studentId, decision, notes: notes || '', blockchainTxHash },
     });
 
     if (studentId) {
-      await db.ref('Audit_Log').push({
+      await db.collection('Audit_log').add({
         userId: studentId,
         event: decision === 'Approved' ? 'Identity Verification Successful' : 'Identity Verification Failed',
-        timestamp: admin.database.ServerValue.TIMESTAMP,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
         details: { requestId: id, verifierId, notes: notes || '', blockchainTxHash },
       });
     }
@@ -349,19 +407,20 @@ const decideVerification = async (req, res) => {
   }
 };
 
-// GET /api/verifier/stats/:id  — quick stats for verifier profile page
+// GET /api/verifier/stats/:id
 const getVerifierStats = async (req, res) => {
   try {
     const verifierId = req.user.id || req.user.uid;
-    const db = admin.database();
+    const db = admin.firestore();
 
-    const verReqRef = db.ref('Verification_Requests');
-    const snapshot = await verReqRef.orderByChild('decidedBy').equalTo(verifierId).once('value');
+    const snapshot = await db.collection('Verification_Requests')
+      .where('decidedBy', '==', verifierId)
+      .get();
 
     let total = 0, approved = 0, rejected = 0;
-    if (snapshot.exists()) {
-      const data = snapshot.val();
-      Object.values(data).forEach((item) => {
+    if (!snapshot.empty) {
+      snapshot.docs.forEach((doc) => {
+        const item = doc.data();
         total++;
         if (item.status === 'Approved') approved++;
         else if (item.status === 'Rejected') rejected++;
@@ -375,23 +434,20 @@ const getVerifierStats = async (req, res) => {
   }
 };
 
-// GET /api/admin/verifiers — list all verifier accounts from Verifiers/ node
+// GET /api/admin/verifiers — list all verifier accounts from Verifiers collection
 const listVerifiers = async (req, res) => {
   try {
-    const db = admin.database();
-    const verifiersRef = db.ref('Verifiers');
-    const snapshot = await verifiersRef.once('value');
+    const db = admin.firestore();
+    const snapshot = await db.collection('Verifiers').get();
 
-    if (!snapshot.exists()) {
+    if (snapshot.empty) {
       return res.status(200).json({ verifiers: [] });
     }
 
-    const data = snapshot.val();
-    const verifiers = Object.keys(data).map(key => {
-      const v = data[key];
-      // don't send password
+    const verifiers = snapshot.docs.map(doc => {
+      const v = doc.data();
       return {
-        id: v.id,
+        id: v.id || doc.id,
         name: v.name,
         email: v.email,
         phone: v.phone,
@@ -414,17 +470,17 @@ const updateVerifier = async (req, res) => {
   try {
     const { id } = req.params;
     const { name, email, password, department, employeeId } = req.body;
-    
-    const db = admin.database();
-    const verifierRef = db.ref(`Verifiers/${id}`);
-    const snapshot = await verifierRef.once('value');
 
-    if (!snapshot.exists()) {
+    const db = admin.firestore();
+    const verifierRef = db.collection('Verifiers').doc(id);
+    const doc = await verifierRef.get();
+
+    if (!doc.exists) {
       return res.status(404).json({ error: 'Verifier not found' });
     }
 
     const updates = { name, email, department, employeeId };
-    
+
     if (password) {
       const salt = await bcrypt.genSalt(10);
       updates.password = await bcrypt.hash(password, salt);
@@ -443,16 +499,16 @@ const updateVerifierRole = async (req, res) => {
   try {
     const { id } = req.params;
     const { role } = req.body;
-    
+
     if (!role) {
       return res.status(400).json({ error: 'Role is required' });
     }
 
-    const db = admin.database();
-    const verifierRef = db.ref(`Verifiers/${id}`);
-    const snapshot = await verifierRef.once('value');
+    const db = admin.firestore();
+    const verifierRef = db.collection('Verifiers').doc(id);
+    const doc = await verifierRef.get();
 
-    if (!snapshot.exists()) {
+    if (!doc.exists) {
       return res.status(404).json({ error: 'Verifier not found' });
     }
 
@@ -474,21 +530,20 @@ const createVerifier = async (req, res) => {
       return res.status(400).json({ error: 'Name, email, and password are required' });
     }
 
-    const db = admin.database();
-    const verifiersRef = db.ref('Verifiers');
+    const db = admin.firestore();
 
     // Check if email already exists
-    const existing = await verifiersRef.orderByChild('email').equalTo(email).once('value');
-    if (existing.exists()) {
+    const existing = await db.collection('Verifiers').where('email', '==', email).limit(1).get();
+    if (!existing.empty) {
       return res.status(409).json({ error: 'A verifier with this email already exists' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 12);
-    const newRef = verifiersRef.push();
+    const newRef = db.collection('Verifiers').doc();
     const now = Date.now();
 
     await newRef.set({
-      id: newRef.key,
+      id: newRef.id,
       name,
       email,
       password: hashedPassword,
@@ -500,16 +555,16 @@ const createVerifier = async (req, res) => {
     });
 
     // Audit log
-    await db.ref('Audit_Log').push({
+    await db.collection('Audit_log').add({
       userId: req.user ? (req.user.id || req.user.uid) : 'admin',
       event: 'Verifier Account Created',
-      timestamp: admin.database.ServerValue.TIMESTAMP,
-      details: { verifierId: newRef.key, email },
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      details: { verifierId: newRef.id, email },
     });
 
     return res.status(201).json({
       message: 'Verifier created successfully',
-      verifier: { id: newRef.key, name, email, department: department || '', employeeId: employeeId || '', role: 'verifier', createdAt: now },
+      verifier: { id: newRef.id, name, email, department: department || '', employeeId: employeeId || '', role: 'verifier', createdAt: now },
     });
   } catch (error) {
     console.error('Error in createVerifier:', error);
@@ -521,22 +576,22 @@ const createVerifier = async (req, res) => {
 const deleteVerifier = async (req, res) => {
   try {
     const { id } = req.params;
-    const db = admin.database();
-    const verifierRef = db.ref(`Verifiers/${id}`);
+    const db = admin.firestore();
+    const verifierRef = db.collection('Verifiers').doc(id);
 
-    const snapshot = await verifierRef.once('value');
-    if (!snapshot.exists()) {
+    const doc = await verifierRef.get();
+    if (!doc.exists) {
       return res.status(404).json({ error: 'Verifier not found' });
     }
 
-    const verifierData = snapshot.val();
-    await verifierRef.remove();
+    const verifierData = doc.data();
+    await verifierRef.delete();
 
     // Audit log
-    await db.ref('Audit_Log').push({
+    await db.collection('Audit_log').add({
       userId: req.user ? (req.user.id || req.user.uid) : 'admin',
       event: 'Verifier Account Deleted',
-      timestamp: admin.database.ServerValue.TIMESTAMP,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
       details: { verifierId: id, email: verifierData.email },
     });
 

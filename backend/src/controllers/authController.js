@@ -1,7 +1,7 @@
 const admin = require('../config/firebase');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 const crypto = require('crypto');
 
 const verifyOTPAndRegister = async (req, res) => {
@@ -18,48 +18,50 @@ const verifyOTPAndRegister = async (req, res) => {
     }
 
     const cleanEmail = email.trim().toLowerCase();
-    const db = admin.database();
+    const db = admin.firestore();
     const emailKey = cleanEmail.replace(/\./g, '_');
-    const otpRef = db.ref(`Temporary_OTPs/${emailKey}`);
-    const snapshot = await otpRef.once('value');
 
-    if (!snapshot.exists()) {
+    // Check OTP in Firestore
+    const otpRef = db.collection('Temporary_OTPs').doc(emailKey);
+    const otpSnap = await otpRef.get();
+
+    if (!otpSnap.exists) {
       return res.status(400).json({ error: 'No verification code requested or it has expired' });
     }
 
-    const { otp: storedOtp, expiresAt } = snapshot.val();
+    const { otp: storedOtp, expiresAt } = otpSnap.data();
 
     if (storedOtp !== otp) {
       return res.status(400).json({ error: 'Invalid verification code' });
     }
 
     if (Date.now() > expiresAt) {
-      await otpRef.remove();
+      await otpRef.delete();
       return res.status(400).json({ error: 'Verification code has expired' });
     }
 
     // Clear the OTP
-    await otpRef.remove();
+    await otpRef.delete();
 
     // Create user in Firebase Authentication
     const userRecord = await admin.auth().createUser({
       email: cleanEmail,
       password,
-      emailVerified: true // Mark verified since they successfully completed the email OTP check!
+      emailVerified: true
     });
 
-    // Hash password for Realtime Database
+    // Hash password for Firestore
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Save user to Realtime Database under the "Users" node
-    await db.ref(`Users/${userRecord.uid}`).set({
+    // Save user to Firestore under the "Users" collection
+    await db.collection('Users').doc(userRecord.uid).set({
       email: userRecord.email,
       password: hashedPassword,
       name: name,
       studentId: studentId,
       nic: nic,
-      createdAt: admin.database.ServerValue.TIMESTAMP
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
     });
 
     res.status(201).json({
@@ -87,22 +89,17 @@ const login = async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    // Query Firebase Realtime Database Users collection
-    const db = admin.database();
-    const usersRef = db.ref('Users');
-    const snapshot = await usersRef.orderByChild('email').equalTo(email).once('value');
+    // Query Firestore Users collection
+    const db = admin.firestore();
+    const usersQuery = await db.collection('Users').where('email', '==', email).limit(1).get();
 
-    if (!snapshot.exists()) {
+    if (usersQuery.empty) {
       return res.status(404).json({ error: 'Account not found. Please register first.' });
     }
 
-    let userData = null;
-    let userId = null;
-
-    snapshot.forEach((childSnapshot) => {
-      userData = childSnapshot.val();
-      userId = childSnapshot.key;
-    });
+    const userDoc = usersQuery.docs[0];
+    const userData = userDoc.data();
+    const userId = userDoc.id;
 
     if (!userData || !userData.password) {
       return res.status(401).json({ error: 'Unauthorized: Invalid credentials' });
@@ -123,11 +120,10 @@ const login = async (req, res) => {
     );
 
     // Record login event in Audit_Log
-    const auditLogRef = db.ref('Audit_Log');
-    await auditLogRef.push({
+    await db.collection('Audit_log').add({
       userId: userId,
       event: 'login',
-      timestamp: admin.database.ServerValue.TIMESTAMP,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
       email: email
     });
 
@@ -149,19 +145,16 @@ const googleLogin = async (req, res) => {
     const decodedToken = await admin.auth().verifyIdToken(idToken);
     const { uid, email, name } = decodedToken;
 
-    const db = admin.database();
-    
-    // Check if the user's email already exists in the Users database node
-    const usersRef = db.ref('Users');
-    const snapshot = await usersRef.orderByChild('email').equalTo(email).once('value');
+    const db = admin.firestore();
+
+    // Check if the user's email already exists in the Users collection
+    const usersQuery = await db.collection('Users').where('email', '==', email).limit(1).get();
 
     let finalUid = uid;
 
-    if (!snapshot.exists()) {
+    if (usersQuery.empty) {
       // If the email is not registered in the database
       if (!isRegister) {
-        // Since Firebase Auth client SDK automatically created a Firebase Auth user entry
-        // during signInWithPopup, we should delete it if they don't have a database account!
         try {
           await admin.auth().deleteUser(uid);
           console.log(`Successfully deleted unregistered Google user ${email} (${uid}) from Firebase Auth.`);
@@ -171,13 +164,12 @@ const googleLogin = async (req, res) => {
         return res.status(404).json({ error: 'Account not found. Please register first.' });
       }
 
-      // If they are registering, initialize their database entry
-      const userRef = db.ref(`Users/${uid}`);
-      await userRef.set({
+      // If they are registering, initialize their Firestore document
+      await db.collection('Users').doc(uid).set({
         email: email,
         name: name || "New Student",
-        createdAt: admin.database.ServerValue.TIMESTAMP,
-        isVerified: false // Default state before your Face Match system runs
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        isVerified: false
       });
     } else {
       // If the user already exists in the database
@@ -185,12 +177,7 @@ const googleLogin = async (req, res) => {
         return res.status(400).json({ error: 'Account already registered' });
       }
 
-      // Get the existing UID from the snapshot to ensure we use the correct node path
-      let existingUid = null;
-      snapshot.forEach((childSnapshot) => {
-        existingUid = childSnapshot.key;
-      });
-      finalUid = existingUid;
+      finalUid = usersQuery.docs[0].id;
     }
 
     // Generate your application's JWT session token
@@ -217,11 +204,11 @@ const sendRegistrationOTP = async (req, res) => {
 
     const cleanEmail = email.trim().toLowerCase();
 
-    // Check if user already exists in Firebase Realtime Database
-    const db = admin.database();
-    const userSnapshot = await db.ref('Users').orderByChild('email').equalTo(cleanEmail).once('value');
+    // Check if user already exists in Firestore
+    const db = admin.firestore();
+    const userQuery = await db.collection('Users').where('email', '==', cleanEmail).limit(1).get();
 
-    if (userSnapshot.exists()) {
+    if (!userQuery.empty) {
       return res.status(400).json({ error: 'Account already registered' });
     }
 
@@ -239,30 +226,33 @@ const sendRegistrationOTP = async (req, res) => {
     const otp = crypto.randomInt(100000, 999999).toString();
     const expiresAt = Date.now() + 5 * 60 * 1000; // Code expires in 5 minutes
 
-    // 2. Save temporarily to Firebase Realtime Database
-    // Clean the email string to use as a Firebase key (replace dots)
+    // 2. Save temporarily to Firestore
     const emailKey = cleanEmail.replace(/\./g, '_');
-    await db.ref(`Temporary_OTPs/${emailKey}`).set({ otp, expiresAt });
+    await db.collection('Temporary_OTPs').doc(emailKey).set({ otp, expiresAt });
 
-    // 3. Configure Gmail Transporter (Use your App Password here)
-    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-      const transporter = nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 465,
-        secure: true,
-        auth: {
-          user: process.env.EMAIL_USER, // Your Gmail address
-          pass: process.env.EMAIL_PASS  // Your Google App Password
-        }
-      });
+    // 3. Send OTP via Resend
+    if (process.env.RESEND_API_KEY) {
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 
-      // 4. Send the Email
-      await transporter.sendMail({
-        from: `"Identity Verification System" <${process.env.EMAIL_USER}>`,
-        to: cleanEmail,
-        subject: 'Your Identity System Verification Code',
-        text: `Your One-Time Password (OTP) for account registration is: ${otp}. It is valid for 5 minutes.`
+      await resend.emails.send({
+        from: `Identity Verification System <${fromEmail}>`,
+        to: [cleanEmail],
+        subject: 'Your Identity Verification Code',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 8px;">
+            <h2 style="color: #1d4ed8; margin-bottom: 8px;">🎓 Identity Verification System</h2>
+            <p style="color: #374151;">Your One-Time Password (OTP) for account registration is:</p>
+            <div style="background: #f3f4f6; border-radius: 8px; padding: 16px; text-align: center; margin: 16px 0;">
+              <span style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #1d4ed8;">${otp}</span>
+            </div>
+            <p style="color: #6b7280; font-size: 14px;">This code is valid for <strong>5 minutes</strong>. Do not share it with anyone.</p>
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 16px 0;" />
+            <p style="color: #9ca3af; font-size: 12px;">If you did not request this code, please ignore this email.</p>
+          </div>
+        `
       });
+      console.log(`[Resend] OTP email sent to ${cleanEmail}`);
     } else {
       console.log(`[DEVELOPMENT MODE] OTP for ${cleanEmail} is: ${otp}`);
     }
@@ -281,5 +271,3 @@ module.exports = {
   login,
   googleLogin,
 };
-
-

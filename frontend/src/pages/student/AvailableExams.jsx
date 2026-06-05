@@ -14,59 +14,45 @@ const AvailableExams = ({ onBack }) => {
   const [enrolling, setEnrolling] = useState(null);
   const [enrollments, setEnrollments] = useState({});
 
-  // Real-time listener on Firebase /Exams node
+  // Fetch Exams and Enrollments from REST API
   useEffect(() => {
-    const auth = getAuth();
-    let unsubscribeDb = null;
-    
-    // Wait for Firebase Auth to initialize before fetching data
-    const unsubscribeAuth = auth.onAuthStateChanged((user) => {
-      if (!user) {
-        // Still initializing or actually logged out. Don't fetch yet.
-        return; 
+    const fetchData = async () => {
+      const auth = getAuth();
+      const user = auth.currentUser;
+      const token = localStorage.getItem('token');
+
+      try {
+        // Fetch all exams
+        const examsRes = await fetch(`http://${window.location.hostname}:5000/api/exam`);
+        if (examsRes.ok) {
+          const examsData = await examsRes.json();
+          setExams(examsData.exams || []);
+        }
+
+        // Fetch user's enrollments if logged in
+        if (user && token) {
+          const userRes = await fetch(`http://${window.location.hostname}:5000/api/user/home`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (userRes.ok) {
+            const userData = await userRes.json();
+            const enrolledDict = {};
+            const upcoming = userData.myExams?.upcoming || [];
+            const past = userData.myExams?.past || [];
+            [...upcoming, ...past].forEach(ex => {
+              enrolledDict[ex.id] = { verificationStatus: ex.verificationStatus || 'pending' };
+            });
+            setEnrollments(enrolledDict);
+          }
+        }
+      } catch (err) {
+        console.error("Error loading exams:", err);
+      } finally {
+        setLoading(false);
       }
-
-      const examsRef = ref(db, 'Exams');
-      
-      // Clean up previous listener if it exists
-      if (unsubscribeDb) unsubscribeDb();
-
-      unsubscribeDb = onValue(examsRef, (snapshot) => {
-        setLoading(false);
-        if (!snapshot.exists()) {
-          setExams([]);
-          return;
-        }
-        const data = snapshot.val();
-        const examsList = Object.keys(data).map(key => ({
-          id: key,
-          ...data[key]
-        }));
-        // Sort by date ascending
-        examsList.sort((a, b) => new Date(a.date) - new Date(b.date));
-        setExams(examsList);
-      }, (error) => {
-        console.error("Firebase read error (Exams):", error);
-        setLoading(false);
-        alert("Error loading exams from database. Check Firebase security rules.");
-      });
-
-      // Fetch user's enrollments
-      const enrollmentsRef = ref(db, `Enrollments/${user.uid}`);
-      onValue(enrollmentsRef, (enrollSnap) => {
-        if (enrollSnap.exists()) {
-          setEnrollments(enrollSnap.val());
-        } else {
-          setEnrollments({});
-        }
-      });
-    });
-
-    // Cleanup listener on unmount
-    return () => {
-      if (unsubscribeAuth) unsubscribeAuth();
-      if (unsubscribeDb) unsubscribeDb();
     };
+
+    fetchData();
   }, []);
 
   // Filter exams based on search query
@@ -77,9 +63,8 @@ const AvailableExams = ({ onBack }) => {
   );
 
   const handleEnroll = async (examId) => {
-    const auth = getAuth();
-    const user = auth.currentUser;
-    if (!user) {
+    const token = localStorage.getItem('token');
+    if (!token) {
       alert('Please log in to enroll.');
       return;
     }
@@ -94,17 +79,21 @@ const AvailableExams = ({ onBack }) => {
 
     setEnrolling(examId);
     try {
-      // Write enrollment to Firebase
-      const { ref: dbRef, set, serverTimestamp } = await import('firebase/database');
-      const enrollmentRef = dbRef(db, `Enrollments/${user.uid}/${examId}`);
-      await set(enrollmentRef, {
-        examId,
-        enrolledAt: new Date().toISOString(),
-        verificationStatus: 'pending',
-        studentId: user.uid,
-        studentEmail: user.email
+      const res = await fetch(`http://${window.location.hostname}:5000/api/user/enroll`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ examId })
       });
-      navigate('/verification', { state: { examId: exam.id, examCode: exam.courseCode } });
+
+      if (res.ok) {
+        navigate('/verification', { state: { examId: exam.id, examCode: exam.courseCode } });
+      } else {
+        const errorData = await res.json();
+        alert(errorData.error || 'Failed to enroll.');
+      }
     } catch (err) {
       console.error('Enrollment error:', err);
       alert('Failed to enroll. Please try again.');

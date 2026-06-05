@@ -2,31 +2,28 @@ const admin = require('../config/firebase');
 
 const getStudentDashboard = async (req, res) => {
   try {
-    // Extract user ID from the decoded JWT token attached by authMiddleware
-    // Depending on authController.js, the uid is stored in req.user.uid
     const userId = req.user.uid || req.user.userId;
 
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized: User ID not found in token' });
     }
 
-    const db = admin.database();
+    const db = admin.firestore();
 
-    // 1. Fetch user's name, NIC, and email from Firebase Users collection
-    const userRef = db.ref(`Users/${userId}`);
-    const userSnapshot = await userRef.once('value');
-    
-    if (!userSnapshot.exists()) {
+    // 1. Fetch user data
+    const userDoc = await db.collection('Users').doc(userId).get();
+
+    if (!userDoc.exists) {
       return res.status(404).json({ error: 'User not found' });
     }
 
     const formatDate = (timestamp) => {
       if (!timestamp) return 'Jan 15, 2026';
-      const date = new Date(timestamp);
+      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
       return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     };
 
-    const userData = userSnapshot.val();
+    const userData = userDoc.data();
     const userInfo = {
       name: userData.name || '',
       studentId: userData.studentId || '',
@@ -39,44 +36,38 @@ const getStudentDashboard = async (req, res) => {
     };
 
     // 2. Retrieve the latest status from Verification_Requests collection
-    const verReqRef = db.ref('Verification_Requests');
-    // Fetch all requests for this user
-    const verReqSnapshot = await verReqRef.orderByChild('userId').equalTo(userId).once('value');
-    
+    const verReqQuery = await db.collection('Verification_Requests')
+      .where('userId', '==', userId)
+      .get();
+
     let latestStatus = 'Not Submitted';
     let latestTimestamp = 0;
 
-    if (verReqSnapshot.exists()) {
-      verReqSnapshot.forEach((childSnapshot) => {
-        const reqData = childSnapshot.val();
-        const reqTimestamp = reqData.timestamp || 0;
-        
-        // Find the most recent verification request
-        if (reqTimestamp >= latestTimestamp) {
-          latestTimestamp = reqTimestamp;
+    if (!verReqQuery.empty) {
+      verReqQuery.docs.forEach((doc) => {
+        const reqData = doc.data();
+        const ts = reqData.timestamp ? (reqData.timestamp.toMillis ? reqData.timestamp.toMillis() : reqData.timestamp) : 0;
+        if (ts >= latestTimestamp) {
+          latestTimestamp = ts;
           latestStatus = reqData.status || 'Pending';
         }
       });
     }
 
-    // 3. Fetch the 5 most recent activities from Audit_Log specifically for this user
-    const auditLogRef = db.ref('Audit_Log');
-    const auditLogSnapshot = await auditLogRef.orderByChild('userId').equalTo(userId).once('value');
-    
-    let activities = [];
-    if (auditLogSnapshot.exists()) {
-      auditLogSnapshot.forEach((childSnapshot) => {
-        activities.push(childSnapshot.val());
-      });
-    }
+    // 3. Fetch the 5 most recent activities for this user
+    // Note: No .orderBy() here to avoid needing a composite Firestore index — we sort in JS
+    const auditQuery = await db.collection('Audit_log')
+      .where('userId', '==', userId)
+      .get();
 
-    // Sort activities descending by timestamp
-    activities.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-    
-    // Get the top 5 most recent activities
-    const recentActivities = activities.slice(0, 5);
+    const recentActivities = auditQuery.docs
+      .map(doc => {
+        const d = doc.data();
+        return { ...d, timestamp: d.timestamp ? d.timestamp.toMillis() : null };
+      })
+      .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+      .slice(0, 5);
 
-    // Return the combined dashboard data
     return res.status(200).json({
       profile: userInfo,
       verificationStatus: latestStatus,
@@ -100,14 +91,14 @@ const updateProfile = async (req, res) => {
     const { name, nic, studentId, email, avatar, phone, department } = req.body;
 
     if (!name && !nic && !studentId && !email && !avatar && !phone && !department) {
-      return res.status(400).json({ error: 'At least one field (name, nic, studentId, email, avatar, phone, or department) is required to update' });
+      return res.status(400).json({ error: 'At least one field is required to update' });
     }
 
-    const db = admin.database();
-    const userRef = db.ref(`Users/${userId}`);
-    
-    const userSnapshot = await userRef.once('value');
-    if (!userSnapshot.exists()) {
+    const db = admin.firestore();
+    const userRef = db.collection('Users').doc(userId);
+
+    const userDoc = await userRef.get();
+    if (!userDoc.exists) {
       return res.status(404).json({ error: 'User not found' });
     }
 
@@ -122,22 +113,21 @@ const updateProfile = async (req, res) => {
 
     await userRef.update(updates);
 
-    // Sanitize updates for the audit log to prevent storing huge base64 image strings
+    // Sanitize updates for the audit log
     const auditDetails = { ...updates };
     if (auditDetails.avatar) {
       auditDetails.avatar = `[Base64 Image - Size: ${Math.round(auditDetails.avatar.length / 1024)} KB]`;
     }
 
-    const auditLogRef = db.ref('Audit_Log');
-    await auditLogRef.push({
+    await db.collection('Audit_log').add({
       userId: userId,
       event: 'Profile Updated',
-      timestamp: admin.database.ServerValue.TIMESTAMP,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
       details: auditDetails
     });
 
-    const updatedUserSnapshot = await userRef.once('value');
-    const updatedUser = updatedUserSnapshot.val();
+    const updatedDoc = await userRef.get();
+    const updatedUser = updatedDoc.data();
 
     if (updatedUser.password) {
       delete updatedUser.password;
@@ -162,62 +152,53 @@ const getDashboardData = async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized: User ID not found in token' });
     }
 
-    const db = admin.database();
+    const db = admin.firestore();
 
-    // 1. Fetch Audit Logs (Activity & Overview)
-    const auditLogRef = db.ref('Audit_Log');
-    const auditLogSnapshot = await auditLogRef.orderByChild('userId').equalTo(userId).once('value');
-    
-    let allActivities = [];
-    if (auditLogSnapshot.exists()) {
-      auditLogSnapshot.forEach((childSnapshot) => {
-        allActivities.push(childSnapshot.val());
-      });
-    }
+    // 1. Fetch Audit Logs — no .orderBy() to avoid composite index requirement
+    const auditQuery = await db.collection('Audit_log')
+      .where('userId', '==', userId)
+      .get();
 
-    // Sort descending by timestamp
-    allActivities.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-    
-    // Overview needs last 4 logs, Activity needs full history
+    const allActivities = auditQuery.docs
+      .map(doc => {
+        const d = doc.data();
+        return { ...d, timestamp: d.timestamp ? d.timestamp.toMillis() : null };
+      })
+      .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
     const recentActivity = allActivities.slice(0, 4);
 
     // 2. Fetch Verification details
-    const verReqRef = db.ref('Verification_Requests');
-    const verReqSnapshot = await verReqRef.orderByChild('userId').equalTo(userId).once('value');
-    
+    const verReqQuery = await db.collection('Verification_Requests')
+      .where('userId', '==', userId)
+      .get();
+
     let latestFaceMatchScore = null;
     let latestBlockchainHash = null;
     let latestTimestamp = 0;
 
-    if (verReqSnapshot.exists()) {
-      verReqSnapshot.forEach((childSnapshot) => {
-        const reqData = childSnapshot.val();
-        const reqTimestamp = reqData.timestamp || 0;
-        
-        if (reqTimestamp >= latestTimestamp) {
-          latestTimestamp = reqTimestamp;
+    if (!verReqQuery.empty) {
+      verReqQuery.docs.forEach((doc) => {
+        const reqData = doc.data();
+        const ts = reqData.timestamp ? (reqData.timestamp.toMillis ? reqData.timestamp.toMillis() : reqData.timestamp) : 0;
+        if (ts >= latestTimestamp) {
+          latestTimestamp = ts;
           latestFaceMatchScore = reqData.faceMatchScore || null;
           latestBlockchainHash = reqData.blockchainHash || null;
         }
       });
     }
 
-    // 3. Fetch Exams (My Exams & Overview)
-    const examsRef = db.ref(`Student_Exams/${userId}`);
-    const examsSnapshot = await examsRef.once('value');
-    
+    // 3. Fetch Student Exams
+    const examsQuery = await db.collection('Student_Exams').doc(userId).collection('exams').get();
+
     let allExams = [];
-    if (examsSnapshot.exists()) {
-      examsSnapshot.forEach((childSnapshot) => {
-        allExams.push({ id: childSnapshot.key, ...childSnapshot.val() });
-      });
+    if (!examsQuery.empty) {
+      allExams = examsQuery.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     }
 
     const now = new Date().getTime();
 
-    // Categorize by date: Upcoming vs Past
-    // Using a simplistic check: if exam timestamp > now, it's upcoming
-    // Assuming exam.date is a valid date string or timestamp
     const upcomingExams = allExams.filter(exam => {
       const examTime = new Date(exam.date).getTime();
       return examTime >= now;
@@ -228,7 +209,6 @@ const getDashboardData = async (req, res) => {
       return examTime < now;
     }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-    // Overview needs next 2 upcoming exams
     const nextTwoExams = upcomingExams.slice(0, 2);
 
     return res.status(200).json({
@@ -255,8 +235,128 @@ const getDashboardData = async (req, res) => {
   }
 };
 
+const enrollExam = async (req, res) => {
+  try {
+    const userId = req.user.uid || req.user.userId;
+    const { examId } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized: User ID not found in token' });
+    }
+    if (!examId) {
+      return res.status(400).json({ error: 'examId is required.' });
+    }
+
+    const db = admin.firestore();
+    const examRef = db.collection('Exams').doc(examId);
+    const examDoc = await examRef.get();
+
+    if (!examDoc.exists) {
+      return res.status(404).json({ error: 'Exam not found.' });
+    }
+
+    const examData = examDoc.data();
+    if (examData.status === 'Full' || examData.status === 'Cancelled') {
+      return res.status(400).json({ error: `Cannot enroll: exam is ${examData.status}.` });
+    }
+
+    const userRef = db.collection('Users').doc(userId);
+    const userDoc = await userRef.get();
+    const userData = userDoc.exists ? userDoc.data() : { email: '' };
+
+    const enrolledAt = new Date().toISOString();
+    
+    // Write to Enrollments collection (for verification workflow)
+    await db.collection('Enrollments').doc(userId).collection('exams').doc(examId).set({
+      examId,
+      enrolledAt,
+      verificationStatus: 'pending',
+      studentId: userId,
+      studentEmail: userData.email || ''
+    });
+
+    // Write to Student_Exams collection (for dashboard)
+    await db.collection('Student_Exams').doc(userId).collection('exams').doc(examId).set({
+      ...examData,
+      verificationStatus: 'pending',
+      enrolledAt,
+      verifiedAt: null
+    });
+
+    // Increment enrolled count
+    await examRef.update({
+      enrolled: admin.firestore.FieldValue.increment(1)
+    });
+
+    // Audit log
+    await db.collection('Audit_log').add({
+      userId: userId,
+      event: `Enrolled in ${examData.courseCode}`,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      details: { examId, courseCode: examData.courseCode }
+    });
+
+    return res.status(200).json({ message: 'Enrolled successfully' });
+  } catch (error) {
+    console.error('Error in enrollExam:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
+const cancelEnrollment = async (req, res) => {
+  try {
+    const userId = req.user.uid || req.user.userId;
+    const { examId } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const db = admin.firestore();
+    
+    // Check if enrolled
+    const studentExamRef = db.collection('Student_Exams').doc(userId).collection('exams').doc(examId);
+    const studentExamDoc = await studentExamRef.get();
+    
+    if (!studentExamDoc.exists) {
+      return res.status(404).json({ error: 'Enrollment not found.' });
+    }
+    const examData = studentExamDoc.data();
+
+    await studentExamRef.delete();
+    await db.collection('Enrollments').doc(userId).collection('exams').doc(examId).delete();
+
+    // Decrement enrolled count
+    const examRef = db.collection('Exams').doc(examId);
+    const examDoc = await examRef.get();
+    if (examDoc.exists) {
+      const currentEnrolled = examDoc.data().enrolled || 0;
+      if (currentEnrolled > 0) {
+        await examRef.update({
+          enrolled: admin.firestore.FieldValue.increment(-1)
+        });
+      }
+    }
+
+    // Audit log
+    await db.collection('Audit_log').add({
+      userId: userId,
+      event: `Cancelled enrollment for ${examData.courseCode || examId}`,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      details: { examId, courseCode: examData.courseCode || '' }
+    });
+
+    return res.status(200).json({ message: 'Enrollment cancelled' });
+  } catch (error) {
+    console.error('Error in cancelEnrollment:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
 module.exports = {
   getStudentDashboard,
   updateProfile,
-  getDashboardData
+  getDashboardData,
+  enrollExam,
+  cancelEnrollment
 };

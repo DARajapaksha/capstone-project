@@ -32,125 +32,108 @@ const Dashboard = () => {
     }
   }, [activeTab]);
 
-  // Real-time: Upcoming Exams from Enrollments joined with Exams
+  // Fetch Dashboard Data from Backend API
   useEffect(() => {
-    const auth = getAuth();
-    let unsubEnrollments = null;
-    let unsubExams = null;
-
-    const unsubAuth = auth.onAuthStateChanged((user) => {
-      if (!user) { setLoadingExams(false); return; }
-
-      const enrollmentsRef = ref(db, `Enrollments/${user.uid}`);
-      unsubEnrollments = onValue(enrollmentsRef, (enrollSnap) => {
-        if (!enrollSnap.exists()) { setUpcomingExams([]); setLoadingExams(false); return; }
-        const enrollments = enrollSnap.val();
-        const examIds = Object.keys(enrollments);
-
-        const examsRef = ref(db, 'Exams');
-        unsubExams = onValue(examsRef, (examsSnap) => {
-          setLoadingExams(false);
-          const allExams = examsSnap.exists() ? examsSnap.val() : {};
-          const joined = examIds
-            .filter(examId => allExams[examId])
-            .map(examId => {
-            const enrollment = enrollments[examId];
-            const exam = allExams[examId];
-            const statusVal = enrollment.verificationStatus || 'pending';
-            const verified = statusVal === 'verified';
-            const rejected = statusVal === 'rejected';
-            const underReview = statusVal === 'review';
-
-            let statusText = 'Verify Required';
-            let statusColor = 'bg-[#F0B100] text-white';
-            let borderColor = 'border-[#FFDF20]';
-            let Icon = ShieldAlert;
-
-            if (verified) {
-              statusText = 'Verified';
-              statusColor = 'bg-[#00C950] text-white';
-              borderColor = 'border-gray-200';
-              Icon = ShieldCheck;
-            } else if (underReview) {
-              statusText = 'Pending Review';
-              statusColor = 'bg-[#3B82F6] text-white';
-              borderColor = 'border-[#93C5FD]';
-              Icon = Clock;
-            } else if (rejected) {
-              statusText = 'Verification Rejected';
-              statusColor = 'bg-[#DC2626] text-white';
-              borderColor = 'border-[#DC2626]';
-              Icon = ShieldAlert;
-            }
-
-            return {
-              id: examId,
-              title: exam.courseName || 'Unknown Exam',
-              code: exam.courseCode || examId,
-              date: exam.date || 'TBD',
-              time: exam.time || 'TBD',
-              status: statusText,
-              statusColor: statusColor,
-              borderColor: borderColor,
-              statusIcon: Icon,
-              actionIcon: Icon,
-              isVerified: verified,
-              isUnderReview: underReview,
-              txHash: profile?.blockchainTxHash || null
-            };
-          });
-          joined.sort((a, b) => new Date(a.date) - new Date(b.date));
-          setUpcomingExams(joined);
-        });
-      });
-    });
-
-    return () => {
-      unsubAuth();
-      if (unsubEnrollments) unsubEnrollments();
-      if (unsubExams) unsubExams();
-    };
-  }, []);
-
-  // Real-time: Recent Activity from Audit_Log filtered by current user
-  useEffect(() => {
-    const auth = getAuth();
-    let unsubAudit = null;
-
-    const unsubAuth = auth.onAuthStateChanged((user) => {
-      if (!user) { setLoadingActivity(false); return; }
-
-      const auditRef = ref(db, 'Audit_Log');
-      unsubAudit = onValue(auditRef, (snap) => {
+    const fetchDashboardData = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setLoadingExams(false);
         setLoadingActivity(false);
-        if (!snap.exists()) { setActivities([]); return; }
-        const all = snap.val();
-        const userLogs = Object.values(all)
-          .filter(log => log.userId === user.uid)
-          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-          .slice(0, 5)
-          .map(log => {
-            const event = (log.event || '').toLowerCase();
-            let icon = FileText, color = 'text-blue-600';
-            if (event.includes('fail') || event.includes('reject')) { icon = ShieldAlert; color = 'text-red-600'; }
-            else if (event.includes('verif') || event.includes('complet')) { icon = CheckCircle; color = 'text-green-600'; }
-            else if (event.includes('profile')) { icon = User; color = 'text-purple-600'; }
-            const ts = log.timestamp ? new Date(log.timestamp) : null;
-            const dateStr = ts
-              ? ts.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                + ' ' + ts.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-              : '';
-            return { action: log.event || 'Activity', date: dateStr, icon, color };
-          });
-        setActivities(userLogs);
-      });
-    });
+        return;
+      }
 
-    return () => {
-      unsubAuth();
-      if (unsubAudit) unsubAudit();
+      try {
+        const response = await fetch(`http://${window.location.hostname}:5000/api/user/home`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          
+          // Map upcoming exams to frontend format
+          if (data.overview && data.overview.upcomingExams) {
+            const mappedExams = data.overview.upcomingExams.map(exam => {
+              const verified = exam.verificationStatus === 'verified';
+              const rejected = exam.verificationStatus === 'rejected';
+              const underReview = exam.verificationStatus === 'review' || exam.verificationStatus === 'pending';
+
+              let statusText = 'Verify Required';
+              let statusColor = 'bg-[#F0B100] text-white';
+              let borderColor = 'border-[#FFDF20]';
+              let Icon = ShieldAlert;
+
+              if (verified) {
+                statusText = 'Verified';
+                statusColor = 'bg-[#00C950] text-white';
+                borderColor = 'border-gray-200';
+                Icon = ShieldCheck;
+              } else if (underReview) {
+                statusText = 'Pending Review';
+                statusColor = 'bg-[#3B82F6] text-white';
+                borderColor = 'border-[#93C5FD]';
+                Icon = Clock;
+              } else if (rejected) {
+                statusText = 'Verification Rejected';
+                statusColor = 'bg-[#DC2626] text-white';
+                borderColor = 'border-[#DC2626]';
+                Icon = ShieldAlert;
+              }
+
+              return {
+                id: exam.id,
+                title: exam.courseName || 'Unknown Exam',
+                code: exam.courseCode || exam.id,
+                date: exam.date || 'TBD',
+                time: exam.time || 'TBD',
+                status: statusText,
+                statusColor: statusColor,
+                borderColor: borderColor,
+                statusIcon: Icon,
+                actionIcon: Icon,
+                isVerified: verified,
+                isUnderReview: underReview,
+                txHash: profile?.blockchainTxHash || null
+              };
+            });
+            setUpcomingExams(mappedExams);
+          } else {
+            setUpcomingExams([]);
+          }
+
+          // Map recent activity to frontend format
+          if (data.overview && data.overview.recentActivity) {
+            const mappedActivities = data.overview.recentActivity.map(log => {
+              const event = (log.event || '').toLowerCase();
+              let icon = FileText, color = 'text-blue-600';
+              if (event.includes('fail') || event.includes('reject')) { icon = ShieldAlert; color = 'text-red-600'; }
+              else if (event.includes('verif') || event.includes('complet')) { icon = CheckCircle; color = 'text-green-600'; }
+              else if (event.includes('profile')) { icon = User; color = 'text-purple-600'; }
+              
+              const ts = log.timestamp ? new Date(log.timestamp) : null;
+              const dateStr = ts
+                ? ts.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                  + ' ' + ts.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+                : '';
+                
+              return { action: log.event || 'Activity', date: dateStr, icon, color };
+            });
+            setActivities(mappedActivities);
+          } else {
+            setActivities([]);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      } finally {
+        setLoadingExams(false);
+        setLoadingActivity(false);
+      }
     };
-  }, []);
+
+    fetchDashboardData();
+  }, [profile]);
 
 
   const initials = profile?.name
