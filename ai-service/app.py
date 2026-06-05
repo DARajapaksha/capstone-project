@@ -1,3 +1,4 @@
+# pyrefly: ignore [missing-import]
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from face_match import match_faces

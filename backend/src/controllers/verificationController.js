@@ -119,7 +119,13 @@ const uploadVerificationImages = async (req, res) => {
       message: 'Verification images uploaded successfully',
       requestId: newReqRef.id,
       status: aiStatus,
-      score: aiScore
+      score: aiScore,
+      aiResults: {
+        face_match: {
+          face_score: aiScore / 100,
+          match: aiStatus === 'success'
+        }
+      }
     });
     
   } catch (error) {

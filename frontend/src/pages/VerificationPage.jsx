@@ -33,6 +33,7 @@ export default function VerificationPage() {
   // Step 4 states
   const [isProcessing, setIsProcessing] = useState(false);
   const [verificationResult, setVerificationResult] = useState(null);
+  const [verifyError, setVerifyError] = useState(null);
 
   // Refs for Step 2 selfie camera
   const videoRef = useRef(null);
@@ -195,20 +196,86 @@ export default function VerificationPage() {
       if (!user) throw new Error('Not logged in');
       const token = await user.getIdToken();
 
-      const response = await fetch('http://localhost:5000/api/verification/liveness', {
+      const response = await fetch(`http://${window.location.hostname}:5000/api/verification/liveness`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ frames })
       });
 
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Liveness check failed (${response.status}): ${text.substring(0, 100)}`);
+      }
+
       const result = await response.json();
+      console.log('Liveness result:', result);
 
-      const aiData = await aiRes.json();
-      console.log('AI Service Response:', aiData);
+      const status = result.status || result.liveness_status || 'Fake';
+      if (status === 'Live') {
+        setLivenessStatus('live');
+        stopLivenessCamera();
+      } else {
+        setLivenessStatus('fake');
+      }
+    } catch (err) {
+      console.error('Liveness error:', err);
+      alert(`Liveness check failed: ${err.message}\n\nMake sure:\n• Backend is running on port 5000\n• Flask AI service is running on port 5001`);
+      setLivenessStatus(null);
+    }
+  };
 
-      // --- Step 4: Derive outcome from real AI results ---
-      // face_match.py returns { match, face_score (0-1), distance, threshold }
-      // liveness.py returns { status: "Live"|"Fake", blink_detected, movement_detected }
+  const retryLiveness = () => {
+    setLivenessStatus(null);
+    setLivenessFrameCount(0);
+    startLivenessCamera();
+  };
+
+  // ════════════════════════════════════════════════════════════════════════
+  // STEP 4 — AI FACE MATCH + RESULT SUBMISSION
+  // ════════════════════════════════════════════════════════════════════════
+  const handleVerify = async () => {
+    setIsProcessing(true);
+    setVerifyError(null);
+    try {
+      const auth = getAuth();
+      const user = auth.currentUser;
+      if (!user) throw new Error('Not logged in');
+      const token = await user.getIdToken();
+
+      // Convert ID image file to base64
+      const nicImageBase64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(idFile);
+      });
+      const selfieImageBase64 = selfieImage;
+
+      // Step 1: Upload images to backend for AI processing
+      const formData = new FormData();
+      formData.append('id_image', base64ToBlob(nicImageBase64, 'image/jpeg'), 'id.jpg');
+      formData.append('selfie_image', base64ToBlob(selfieImageBase64, 'image/jpeg'), 'selfie.jpg');
+      if (examId) formData.append('examId', examId);
+      if (examCode) formData.append('examCode', examCode);
+
+      const uploadRes = await fetch(`http://${window.location.hostname}:5000/api/verification/upload`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+
+      if (!uploadRes.ok) {
+        const text = await uploadRes.text();
+        throw new Error(`Upload failed (${uploadRes.status}): ${text.substring(0, 100)}`);
+      }
+
+      const uploadData = await uploadRes.json();
+      const reqId = uploadData.requestId || null;
+      const aiData = uploadData.aiResults || {};
+
+      console.log('AI Results:', aiData);
+
+      // Step 2: Derive outcome from face score
       const faceScore = Math.round((aiData.face_match?.face_score ?? 0) * 100);
 
       let outcome;
@@ -220,53 +287,34 @@ export default function VerificationPage() {
         outcome = 'success';
       }
 
-      // --- Step 5: Record the result in the Node.js backend ---
-      let realHash = null;
-      try {
-        const user = getAuth().currentUser;
-        if (user) {
-          const token = await user.getIdToken();
-          const res = await fetch(`http://${window.location.hostname}:5000/api/verification/result`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ 
-              status: outcome, 
-              score: faceScore, 
-              examId: examId || null, 
-              examCode, 
-              requestId: reqId,
-              idImage: outcome === 'review' ? nicImageBase64 : undefined,
-              selfieImage: outcome === 'review' ? selfieImageBase64 : undefined
-            })
-          });
-          const resultData = await res.json();
-          if (resultData.blockchainTxHash) {
-            realHash = resultData.blockchainTxHash;
-          }
-        }
-      } catch (err) {
-        console.error("Result sync failed:", err);
-      }
+      // Step 3: Submit the result to the backend
+      const resultRes = await fetch(`http://${window.location.hostname}:5000/api/verification/result`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          status: outcome,
+          score: faceScore,
+          examId: examId || null,
+          examCode,
+          requestId: reqId,
+          idImage: outcome === 'review' ? nicImageBase64 : undefined,
+          selfieImage: outcome === 'review' ? selfieImageBase64 : undefined
+        })
+      });
+
+      const resultData = await resultRes.json();
+      const hash = resultData.blockchainTxHash || null;
 
       const now = new Date();
       const dateString = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       const timeString = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
-      const resultRes = await fetch('http://localhost:5000/api/verification/result', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ status, score, examId: examId || null, examCode, requestId: reqId })
-      });
-      const resultData = await resultRes.json();
-
-      const hash = resultData.blockchainTxHash || null;
-
-      setVerificationResult({ status, score, date: `${dateString}, ${timeString}`, hash });
-      nextStep();
+      setVerificationResult({ status: outcome, score: faceScore, date: `${dateString}, ${timeString}`, hash });
+      setCurrentStep(5);
 
     } catch (err) {
       console.error('Verification error:', err);
-      alert(`Verification failed: ${err.message}\n\nMake sure:\n• Backend is running on port 5000\n• Flask AI service is running on port 5001`);
+      setVerifyError(err.message || 'An unexpected error occurred. Make sure the Flask AI service is running on port 5001.');
     } finally {
       setIsProcessing(false);
     }
@@ -577,16 +625,33 @@ export default function VerificationPage() {
         {/* ── STEP 4: AI PROCESSING ─────────────────────────────────────────── */}
         {currentStep === 4 && (
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 mb-6">
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <Brain className="w-16 h-16 text-indigo-500 animate-pulse mb-4" />
-              <h2 className="text-xl font-bold text-slate-900 mb-2">Analyzing Verification Data</h2>
-              <p className="text-slate-500 text-sm max-w-sm">
-                Our secure AI system is running cross-match facial checks and committing cryptographic ledger telemetry proofs.
-              </p>
-              <div className="mt-8 w-full max-w-xs bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                <div className="h-full bg-indigo-500 animate-infinite-loading rounded-full" style={{ width: '45%' }} />
+            {verifyError ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <XCircle className="w-16 h-16 text-red-400 mb-4" />
+                <h2 className="text-xl font-bold text-slate-900 mb-2">AI Processing Failed</h2>
+                <p className="text-red-500 text-sm max-w-sm mb-2">{verifyError}</p>
+                <p className="text-slate-400 text-xs max-w-sm mb-8">
+                  Make sure: Backend is on port 5000 and Flask AI service is running on port 5001.
+                </p>
+                <button
+                  onClick={() => { setVerifyError(null); handleVerify(); }}
+                  className="px-6 py-2.5 bg-indigo-500 text-white font-medium rounded-xl hover:bg-indigo-600 transition-colors shadow-sm flex items-center gap-2"
+                >
+                  <RefreshCw className="w-4 h-4" /> Retry AI Processing
+                </button>
               </div>
-            </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <Brain className="w-16 h-16 text-indigo-500 animate-pulse mb-4" />
+                <h2 className="text-xl font-bold text-slate-900 mb-2">Analyzing Verification Data</h2>
+                <p className="text-slate-500 text-sm max-w-sm">
+                  Our secure AI system is running cross-match facial checks and committing cryptographic ledger telemetry proofs.
+                </p>
+                <div className="mt-8 w-full max-w-xs bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                  <div className="h-full bg-indigo-500 animate-infinite-loading rounded-full" style={{ width: '45%' }} />
+                </div>
+              </div>
+            )}
           </div>
         )}
 

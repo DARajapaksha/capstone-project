@@ -189,13 +189,52 @@ const getDashboardData = async (req, res) => {
       });
     }
 
-    // 3. Fetch Student Exams
+    // 3. Fetch Student Exams and cross-check against Exams collection
     const examsQuery = await db.collection('Student_Exams').doc(userId).collection('exams').get();
 
     let allExams = [];
     if (!examsQuery.empty) {
-      allExams = examsQuery.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const rawEnrollments = examsQuery.docs.map(doc => {
+        const data = doc.data();
+        let verifiedAtTs = null;
+        if (data.verifiedAt) {
+          verifiedAtTs = data.verifiedAt.toDate ? data.verifiedAt.toDate().toISOString() : data.verifiedAt;
+        }
+        return { 
+          _docRef: doc.ref,
+          id: doc.id, 
+          ...data,
+          verifiedAt: verifiedAtTs
+        };
+      });
+
+      // Check each enrollment's examId exists in the Exams collection
+      const validEnrollments = [];
+      const orphanedRefs = [];
+
+      for (const enrollment of rawEnrollments) {
+        const examId = enrollment.examId || enrollment.id;
+        const examDoc = await db.collection('Exams').doc(examId).get();
+        if (examDoc.exists) {
+          const { _docRef, ...rest } = enrollment;
+          validEnrollments.push(rest);
+        } else {
+          // Exam was deleted by admin — remove this orphaned enrollment
+          orphanedRefs.push(enrollment._docRef);
+        }
+      }
+
+      // Clean up orphaned enrollments in a batch
+      if (orphanedRefs.length > 0) {
+        const batch = db.batch();
+        orphanedRefs.forEach(ref => batch.delete(ref));
+        await batch.commit();
+        console.log(`[getDashboardData] Cleaned ${orphanedRefs.length} orphaned enrollment(s) for user ${userId}`);
+      }
+
+      allExams = validEnrollments;
     }
+
 
     const now = new Date().getTime();
 

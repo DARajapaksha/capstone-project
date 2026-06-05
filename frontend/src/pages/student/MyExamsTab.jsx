@@ -10,49 +10,53 @@ const MyExamsTab = () => {
   const navigate = useNavigate();
   const [myExams, setMyExams] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchMyExams = async (isRefresh = false) => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
+
+    try {
+      const response = await fetch(`http://${window.location.hostname}:5000/api/user/home`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const upcoming = data.myExams?.upcoming || [];
+        const past = data.myExams?.past || [];
+        
+        const allExams = [...upcoming, ...past].map(exam => ({
+          id: exam.id,
+          courseName: exam.courseName || 'Unknown Exam',
+          courseCode: exam.courseCode || exam.id,
+          date: exam.date || 'TBD',
+          time: exam.time ? `${exam.time}` : 'TBD',
+          duration: exam.duration ? `${exam.duration * 60} min` : 'TBD',
+          status: 'upcoming',
+          verificationStatus: exam.verificationStatus || 'pending',
+          enrolledAt: exam.enrolledAt,
+          verifiedAt: exam.verifiedAt || null,
+        }));
+
+        setMyExams(allExams);
+      }
+    } catch (err) {
+      console.error('Error fetching enrolled exams:', err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchMyExams = async () => {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const response = await fetch(`http://${window.location.hostname}:5000/api/user/home`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          const upcoming = data.myExams?.upcoming || [];
-          const past = data.myExams?.past || [];
-          
-          const allExams = [...upcoming, ...past].map(exam => ({
-            id: exam.id,
-            courseName: exam.courseName || 'Unknown Exam',
-            courseCode: exam.courseCode || exam.id,
-            date: exam.date || 'TBD',
-            time: exam.time ? `${exam.time}` : 'TBD',
-            duration: exam.duration ? `${exam.duration * 60} min` : 'TBD',
-            status: 'upcoming', // Could check date to set 'past'
-            verificationStatus: exam.verificationStatus || 'pending',
-            enrolledAt: exam.enrolledAt,
-            verifiedAt: exam.verifiedAt || null,
-          }));
-
-          setMyExams(allExams);
-        }
-      } catch (err) {
-        console.error('Error fetching enrolled exams:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchMyExams();
   }, []);
 
@@ -124,6 +128,23 @@ const MyExamsTab = () => {
 
   return (
     <div className="my-exams-tab">
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
+        <button
+          onClick={() => fetchMyExams(true)}
+          disabled={refreshing}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '6px',
+            padding: '7px 16px', fontSize: '13px', fontWeight: 600,
+            background: refreshing ? '#e5e7eb' : '#f3f4f6',
+            color: '#374151', border: '1px solid #d1d5db',
+            borderRadius: '8px', cursor: refreshing ? 'not-allowed' : 'pointer',
+            transition: 'background 0.2s'
+          }}
+        >
+          <span style={{ display: 'inline-block', animation: refreshing ? 'spin 1s linear infinite' : 'none' }}>↻</span>
+          {refreshing ? 'Refreshing...' : 'Refresh Queue'}
+        </button>
+      </div>
       <div className="exams-list">
         {myExams.map((exam, index) => (
           <div key={exam.id} className="exam-item">
