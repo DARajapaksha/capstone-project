@@ -24,4 +24,10 @@ router.post(
   verificationController.submitVerificationResult
 );
 
+router.post(
+  '/liveness',
+  authMiddleware,
+  verificationController.checkLiveness
+);
+
 module.exports = router;

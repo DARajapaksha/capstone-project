@@ -30,11 +30,22 @@ const uploadVerificationImages = async (req, res) => {
   try {
     const userId = req.user.uid || req.user.userId;
 
-    if (!req.files || !req.files.id_image) {
+    // 1. Structural Validation
+    if (!req.files || !req.files.id_image || !req.files.id_image[0]) {
       return res.status(400).json({ error: 'id_image is required' });
     }
+    if (!req.files.selfie_image || !req.files.selfie_image[0]) {
+      return res.status(400).json({ error: 'selfie_image is required' });
+    }
 
-    // Create a Pending record WITHOUT storing any image data
+    // 2. Safely Convert Buffer to In-Memory Base64 Data URI strings
+    const idFileObj = req.files.id_image[0];
+    const selfieFileObj = req.files.selfie_image[0];
+
+    const idImageBase64 = `data:${idFileObj.mimetype};base64,${idFileObj.buffer.toString('base64')}`;
+    const selfieImageBase64 = `data:${selfieFileObj.mimetype};base64,${selfieFileObj.buffer.toString('base64')}`;
+
+    // Create a Pending record WITHOUT storing any image data (PDPA compliance)
     const db = admin.firestore();
     const newReqRef = db.collection('Verification_Requests').doc();
 
@@ -53,12 +64,64 @@ const uploadVerificationImages = async (req, res) => {
       details: { requestId: newReqRef.id }
     });
 
-    return res.status(201).json({
-      message: 'Verification request created',
-      requestId: newReqRef.id,
-      status: 'Pending'
-    });
+    // ── Call Flask AI service with both in-memory strings ────────────────
+    let aiStatus = 'failed';
+    let aiScore = 0;
 
+    try {
+      const aiResponse = await fetch('http://localhost:5001/match-faces', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nic_image: idImageBase64,
+          selfie_image: selfieImageBase64
+        })
+      });
+
+      const aiResult = await aiResponse.json();
+      console.log('Flask match-faces result:', aiResult); 
+
+      if (aiResult.error) {
+        console.error('Flask error:', aiResult.error);
+        return res.status(503).json({
+          error: `AI service error: ${aiResult.error}`,
+          requestId: newReqRef.id
+        });
+      }
+
+      aiScore = Math.round((aiResult.face_score || 0) * 100);
+
+      // Determine verification outcome based on confidence threshold
+      if (aiResult.match === true || aiScore >= 55) {
+        aiStatus = 'success';
+      } else if (aiScore > 40) {
+        aiStatus = 'review';
+      } else {
+        aiStatus = 'failed';
+      }
+
+      // Update the request with computed results
+      await newReqRef.update({
+        status: (aiStatus === 'success' || aiStatus === 'review') ? 'Approved' : 'Failed', 
+        score: aiScore,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+    } catch (aiError) {
+      console.error('Flask AI service error:', aiError);
+      return res.status(503).json({
+        error: 'AI service unavailable. Make sure Flask is running on port 5001.',
+        requestId: newReqRef.id
+      });
+    }
+
+    return res.status(201).json({
+      message: 'Verification images uploaded successfully',
+      requestId: newReqRef.id,
+      status: aiStatus,
+      score: aiScore
+    });
+    
   } catch (error) {
     console.error('Error in uploadVerificationImages:', error);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -212,7 +275,6 @@ const submitVerificationResult = async (req, res) => {
 
     } else {
       // Failed
-      let docId = requestId;
       if (requestId) {
         await db.collection('Verification_Requests').doc(requestId).update({
           status: 'Failed',
@@ -249,8 +311,28 @@ const submitVerificationResult = async (req, res) => {
   }
 };
 
+const checkLiveness = async (req, res) => {
+  try {
+    const { frames } = req.body;
+    if (!frames || !Array.isArray(frames) || frames.length === 0) {
+      return res.status(400).json({ error: 'frames array is required' });
+    }
+    const aiResponse = await fetch('http://localhost:5001/check-liveness', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ frames })
+    });
+    const result = await aiResponse.json();
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error('Liveness check error:', error);
+    res.status(500).json({ status: 'fake', error: 'Liveness service unavailable' });
+  }
+};
+
 module.exports = {
   uploadVerificationImages,
   submitVerificationResult,
-  purgeImageFields, // exported so verifierController can call it
+  checkLiveness,
+  purgeImageFields,
 };
