@@ -443,7 +443,8 @@ const Dashboard = () => {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {(() => {
               const totalEnrolled = upcomingExams.length;
-              const needVerification = upcomingExams.filter(e => e.status === 'Verify Required').length;
+              const needVerification = upcomingExams.filter(e => e.status === 'Verify Required' || e.status === 'Verification Rejected').length;
+              const hasRejected = upcomingExams.some(e => e.status === 'Verification Rejected');
               const nextExam = upcomingExams.length > 0 ? upcomingExams[0] : null;
               
               let nextExamDate = 'None';
@@ -458,10 +459,27 @@ const Dashboard = () => {
                 nextExamName = nextExam.title;
               }
               
-              const isFullyVerified = totalEnrolled > 0 && needVerification === 0;
-              const vStatusText = totalEnrolled === 0 ? 'No Exams' : isFullyVerified ? 'Verified' : 'Pending';
-              const vStatusBg = totalEnrolled === 0 ? 'bg-gray-100 text-gray-700' : isFullyVerified ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700';
-              const VIcon = totalEnrolled === 0 ? ShieldCheck : isFullyVerified ? CheckCircle : ShieldAlert;
+              const isFullyVerified = totalEnrolled > 0 && upcomingExams.every(e => e.isVerified);
+              
+              let vStatusText = 'No Exams';
+              let vStatusBg = 'bg-gray-100 text-gray-700';
+              let VIcon = ShieldCheck;
+
+              if (totalEnrolled > 0) {
+                if (isFullyVerified) {
+                  vStatusText = 'Verified';
+                  vStatusBg = 'bg-green-100 text-green-700';
+                  VIcon = CheckCircle;
+                } else if (hasRejected) {
+                  vStatusText = 'Rejected';
+                  vStatusBg = 'bg-red-100 text-red-700';
+                  VIcon = ShieldAlert;
+                } else {
+                  vStatusText = 'Pending';
+                  vStatusBg = 'bg-orange-100 text-orange-700';
+                  VIcon = ShieldAlert;
+                }
+              }
 
               return (
                 <>

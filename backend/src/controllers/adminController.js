@@ -304,6 +304,44 @@ const updateStudentVerificationStatus = async (req, res) => {
   }
 };
 
+const deleteStudent = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) return res.status(400).json({ error: 'Student ID is required' });
+
+    const db = admin.firestore();
+
+    // 1. Delete from Firebase Auth to free up the email
+    try {
+      await admin.auth().deleteUser(id);
+      console.log(`[deleteStudent] User ${id} deleted from Firebase Auth`);
+    } catch (authErr) {
+      if (authErr.code !== 'auth/user-not-found') {
+        throw authErr;
+      }
+    }
+
+    // 2. Cascade delete from Student_Exams subcollections
+    const studentExamsRef = db.collection('Student_Exams').doc(id).collection('exams');
+    const examsSnapshot = await studentExamsRef.get();
+    if (!examsSnapshot.empty) {
+      const batch = db.batch();
+      examsSnapshot.forEach(doc => batch.delete(doc.ref));
+      await batch.commit();
+    }
+    await db.collection('Student_Exams').doc(id).delete();
+
+    // 3. Delete from Users collection
+    await db.collection('Users').doc(id).delete();
+    console.log(`[deleteStudent] User ${id} deleted from Firestore`);
+
+    return res.status(200).json({ message: 'Student deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting student:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
+
 module.exports = {
   adminLogin,
   getAllVerifications,
@@ -312,5 +350,6 @@ module.exports = {
   getAllStudents,
   getAllAudits,
   getAllVerifiers,
-  updateStudentVerificationStatus
+  updateStudentVerificationStatus,
+  deleteStudent
 };

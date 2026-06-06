@@ -30,9 +30,10 @@ const NotificationsDropdown = ({ onClose, onUnreadChange }) => {
 
   // Fetch notifications from REST API
   useEffect(() => {
-    const fetchNotifications = async () => {
-      const auth = getAuth();
-      const user = auth.currentUser;
+    const auth = getAuth();
+    
+    // Use onAuthStateChanged to ensure we wait for Firebase to initialize the user on reload
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
       const token = localStorage.getItem('token');
 
       if (!user || !token) {
@@ -130,9 +131,9 @@ const NotificationsDropdown = ({ onClose, onUnreadChange }) => {
       } catch (error) {
         console.error("Error fetching notifications:", error);
       }
-    };
+    });
 
-    fetchNotifications();
+    return () => unsubscribe();
   }, []);
 
   // Update parent with unread count whenever notifications or read status changes
