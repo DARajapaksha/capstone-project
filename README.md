@@ -124,11 +124,11 @@ npm run dev
 
 ## 👥 Contributors
 
-- **DARajapaksha** - *Capstone Developer*
-- **Hashen Dilshan** (@dilacode007) - *Collaborator*
-- **Janidu Viduranga** - *Collaborator*
-- **Anoj Subodha Mohotti** (@subodha78) - *Collaborator*
-- **Wathsala Indeevari** (@WathsalaIndeevari) - *Collaborator*
+- **Dinsanda Amajith** *(@DARajapaksha)*
+- **Hashen Dilshan** *(@dilacode007)*
+- **Janidu Viduranga** *(@JaniduViduranga)*
+- **Anoj Subodha Mohotti** *(@subodha78)*
+- **Wathsala Indeevari** *(@WathsalaIndeevari)*
 
 ## 📄 License
 This project is developed as an academic capstone project.
