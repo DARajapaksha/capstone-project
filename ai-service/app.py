@@ -1,4 +1,19 @@
-# pyrefly: ignore [missing-import]
+# Fix Windows 'charmap' codec error — force UTF-8 for all console output
+import sys
+import io
+import os
+
+# Suppress verbose TensorFlow / DeepFace / oneDNN logs that contain Unicode
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"          # Suppress TF C++ logs
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"          # Suppress oneDNN Unicode messages
+os.environ["GRPC_VERBOSITY"] = "ERROR"
+os.environ["ABSL_MIN_LOG_LEVEL"] = "3"
+
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+if sys.stderr.encoding != 'utf-8':
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from face_match import match_faces

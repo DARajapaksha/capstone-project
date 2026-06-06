@@ -191,10 +191,8 @@ export default function VerificationPage() {
     }
 
     try {
-      const auth = getAuth();
-      const user = auth.currentUser;
-      if (!user) throw new Error('Not logged in');
-      const token = await user.getIdToken();
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('Not logged in (Token missing)');
 
       const response = await fetch(`http://${window.location.hostname}:5000/api/verification/liveness`, {
         method: 'POST',
@@ -237,10 +235,8 @@ export default function VerificationPage() {
     setIsProcessing(true);
     setVerifyError(null);
     try {
-      const auth = getAuth();
-      const user = auth.currentUser;
-      if (!user) throw new Error('Not logged in');
-      const token = await user.getIdToken();
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('Not logged in (Token missing)');
 
       // Convert ID image file to base64
       const nicImageBase64 = await new Promise((resolve, reject) => {
@@ -276,13 +272,15 @@ export default function VerificationPage() {
       console.log('AI Results:', aiData);
 
       // Step 2: Derive outcome from face score
+      // DeepFace scores: 0 = no match, 100 = perfect match
+      // Threshold lowered to 35 to account for low-quality webcam / ID card images
       const faceScore = Math.round((aiData.face_match?.face_score ?? 0) * 100);
 
       let outcome;
-      if (faceScore < 50) {
+      if (faceScore < 35) {
         outcome = 'failed';
-      } else if (faceScore >= 50 && faceScore < 75) {
-        outcome = 'review';
+      } else if (faceScore >= 35 && faceScore < 60) {
+        outcome = 'review';  // Send to human verifier
       } else {
         outcome = 'success';
       }

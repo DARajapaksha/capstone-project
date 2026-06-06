@@ -9,7 +9,7 @@
     "MIN_TRACKING_CONFIDENCE": 0.5
   },
   "face_match": {
-    "FACE_MATCH_THRESHOLD": 0.6,
-    "MODEL": "opencv_histogram"
+    "FACE_MATCH_THRESHOLD": 0.35,
+    "MODEL": "deepface_vggface"
   }
 }
