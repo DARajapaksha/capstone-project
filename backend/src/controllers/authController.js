@@ -1,7 +1,7 @@
 const admin = require('../config/firebase');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { Resend } = require('resend');
+const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 
 const verifyOTPAndRegister = async (req, res) => {
@@ -230,14 +230,19 @@ const sendRegistrationOTP = async (req, res) => {
     const emailKey = cleanEmail.replace(/\./g, '_');
     await db.collection('Temporary_OTPs').doc(emailKey).set({ otp, expiresAt });
 
-    // 3. Send OTP via Resend
-    if (process.env.RESEND_API_KEY) {
-      const resend = new Resend(process.env.RESEND_API_KEY);
-      const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+    // 3. Send OTP via Nodemailer
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS
+        }
+      });
 
-      await resend.emails.send({
-        from: `Identity Verification System <${fromEmail}>`,
-        to: [cleanEmail],
+      const mailOptions = {
+        from: `Identity Verification System <${process.env.EMAIL_USER}>`,
+        to: cleanEmail,
         subject: 'Your Identity Verification Code',
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 8px;">
@@ -251,10 +256,13 @@ const sendRegistrationOTP = async (req, res) => {
             <p style="color: #9ca3af; font-size: 12px;">If you did not request this code, please ignore this email.</p>
           </div>
         `
-      });
-      console.log(`[Resend] OTP email sent to ${cleanEmail}`);
+      };
+
+      await transporter.sendMail(mailOptions);
+      console.log(`[Nodemailer] OTP email sent to ${cleanEmail}`);
     } else {
       console.log(`[DEVELOPMENT MODE] OTP for ${cleanEmail} is: ${otp}`);
+      console.log('Ensure EMAIL_USER and EMAIL_PASS are set in .env to actually send emails.');
     }
 
     res.status(200).json({ message: 'OTP sent successfully to your Gmail address' });
