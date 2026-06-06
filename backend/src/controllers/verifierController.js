@@ -43,8 +43,9 @@ const verifierLogin = async (req, res) => {
       lastLogin: admin.firestore.FieldValue.serverTimestamp(),
     });
 
+    // Use verifierUser.id if it exists, otherwise use the document ID (verifierKey)
     const token = jwt.sign(
-      { id: verifierUser.id, email: verifierUser.email, role: 'verifier' },
+      { id: verifierUser.id || verifierKey, email: verifierUser.email, role: 'verifier' },
       JWT_SECRET,
       { expiresIn: '12h' }
     );
@@ -343,39 +344,55 @@ const decideVerification = async (req, res) => {
     }
 
     // ── Step 4: Update student status ─────────────────────────────────────────
-    if (studentId && decision === 'Approved') {
-      await db.collection('Users').doc(studentId).update({
-        isVerified: true,
-        verificationStatus: 'Verified',
-        verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
-        blockchainTxHash: blockchainTxHash || null,
-      });
-      if (examId) {
-        await db.collection('Enrollments').doc(studentId).collection('exams').doc(examId).update({
-          verificationStatus: 'verified',
-          verifiedAt: admin.firestore.FieldValue.serverTimestamp()
-        });
-        await db.collection('Student_Exams').doc(studentId).collection('exams').doc(examId).update({
-          verificationStatus: 'verified',
-          verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
-          txHash: blockchainTxHash || null
-        });
+    try {
+      if (studentId && decision === 'Approved') {
+        const userRef = db.collection('Users').doc(studentId);
+        const userDoc = await userRef.get();
+        if (userDoc.exists) {
+          await userRef.update({
+            isVerified: true,
+            verificationStatus: 'Verified',
+            verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
+            blockchainTxHash: blockchainTxHash || null,
+          });
+        }
+        if (examId) {
+          try {
+            await db.collection('Enrollments').doc(studentId).collection('exams').doc(examId).update({
+              verificationStatus: 'verified',
+              verifiedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+            await db.collection('Student_Exams').doc(studentId).collection('exams').doc(examId).update({
+              verificationStatus: 'verified',
+              verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
+              txHash: blockchainTxHash || null
+            });
+          } catch (e) { console.error('Error updating exam status:', e.message); }
+        }
+      } else if (studentId && decision === 'Rejected') {
+        const userRef = db.collection('Users').doc(studentId);
+        const userDoc = await userRef.get();
+        if (userDoc.exists) {
+          await userRef.update({
+            verificationStatus: 'Rejected',
+            isVerified: false,
+          });
+        }
+        if (examId) {
+          try {
+            await db.collection('Enrollments').doc(studentId).collection('exams').doc(examId).update({
+              verificationStatus: 'failed',
+              updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+            await db.collection('Student_Exams').doc(studentId).collection('exams').doc(examId).update({
+              verificationStatus: 'rejected',
+              updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+          } catch (e) { console.error('Error updating exam status:', e.message); }
+        }
       }
-    } else if (studentId && decision === 'Rejected') {
-      await db.collection('Users').doc(studentId).update({
-        verificationStatus: 'Rejected',
-        isVerified: false,
-      });
-      if (examId) {
-        await db.collection('Enrollments').doc(studentId).collection('exams').doc(examId).update({
-          verificationStatus: 'failed',
-          updatedAt: admin.firestore.FieldValue.serverTimestamp()
-        });
-        await db.collection('Student_Exams').doc(studentId).collection('exams').doc(examId).update({
-          verificationStatus: 'rejected',
-          updatedAt: admin.firestore.FieldValue.serverTimestamp()
-        });
-      }
+    } catch (updateErr) {
+      console.error('Error updating user/exam docs (they may have been deleted):', updateErr);
     }
 
     // ── Step 5: Audit logs ────────────────────────────────────────────────────

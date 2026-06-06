@@ -665,6 +665,14 @@ export default function VerificationPage() {
                   <h2 className="text-2xl font-bold text-slate-900">Verification Successful</h2>
                   <p className="text-slate-500 text-sm mt-1">Your identity has been authenticated and secured on-chain.</p>
                 </>
+              ) : verificationResult.status === 'review' ? (
+                <>
+                  <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mb-4 shadow-inner">
+                    <Clock className="w-10 h-10" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-slate-900">Under Manual Review</h2>
+                  <p className="text-slate-500 text-sm mt-1">Your identity verification has been queued for human review. Please check back later.</p>
+                </>
               ) : (
                 <>
                   <div className="w-16 h-16 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center mb-4 shadow-inner">
@@ -683,7 +691,11 @@ export default function VerificationPage() {
               </div>
               <div className="flex justify-between items-center pb-3 border-b border-slate-100">
                 <span className="text-slate-500 text-sm">Match Confidence Index</span>
-                <span className={`font-bold text-sm ${verificationResult.status === 'success' ? 'text-green-600' : 'text-red-500'}`}>
+                <span className={`font-bold text-sm ${
+                  verificationResult.status === 'success' ? 'text-green-600' :
+                  verificationResult.status === 'review' ? 'text-amber-500' :
+                  'text-red-500'
+                }`}>
                   {verificationResult.score}%
                 </span>
               </div>
@@ -725,6 +737,10 @@ export default function VerificationPage() {
                     <Home className="w-4 h-4" /> Dashboard Home
                   </button>
                 </>
+              ) : verificationResult.status === 'review' ? (
+                <button onClick={() => navigate('/student')} className="w-full py-3.5 bg-indigo-500 text-white font-medium rounded-xl hover:bg-indigo-600 transition-colors shadow-sm flex items-center justify-center gap-2 text-sm">
+                  <Home className="w-4 h-4" /> Return to Dashboard
+                </button>
               ) : (
                 <button onClick={handleTryAgain} className="w-full py-3.5 bg-indigo-500 text-white font-medium rounded-xl hover:bg-indigo-600 transition-colors shadow-sm flex items-center justify-center gap-2 text-sm">
                   <RefreshCw className="w-4 h-4" /> Restart Verification Pipeline
