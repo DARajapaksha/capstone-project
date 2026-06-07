@@ -32,6 +32,3 @@ ai-service/__pycache__/
 ai-service/test_images/
 ai-service/test_b64.txt
 ai-service/test_payload.json
-
-# Instruction files
-blockchain.md
