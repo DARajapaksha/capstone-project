@@ -126,7 +126,7 @@ npm run dev
 
 - **Dinsanda Amajith** *(@DARajapaksha)*
 - **Hashen Dilshan** *(@dilacode007)*
-- **Janidu Viduranga** *(@JaniduViduranga)*
+- **Janidu Viduranga**
 - **Anoj Subodha Mohotti** *(@subodha78)*
 - **Wathsala Indeevari** *(@WathsalaIndeevari)*
 
