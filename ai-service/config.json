@@ -1,0 +1,15 @@
+{
+  "liveness": {
+    "EAR_THRESHOLD": 0.25,
+    "CONSECUTIVE_FRAMES": 2,
+    "MOVEMENT_THRESHOLD": 15,
+    "LIVENESS_WINDOW_SECONDS": 10,
+    "MIN_FACE_DETECTION_CONFIDENCE": 0.5,
+    "MIN_FACE_PRESENCE_CONFIDENCE": 0.5,
+    "MIN_TRACKING_CONFIDENCE": 0.5
+  },
+  "face_match": {
+    "FACE_MATCH_THRESHOLD": 0.35,
+    "MODEL": "deepface_vggface"
+  }
+}

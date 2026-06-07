@@ -1,6 +1,7 @@
 node_modules/
 .env
 
+
 # Hardhat files
 /cache
 /artifacts
@@ -15,3 +16,22 @@ node_modules/
 
 # Hardhat Ignition default folder for deployments against a local node
 ignition/deployments/chain-31337
+
+# Firebase Secrets
+serviceAccountKey.json
+
+# Python / AI Service
+venv/
+__pycache__/
+*.pyc
+*.pyo
+ai-service/venv/
+ai-service/__pycache__/
+
+# AI service test files
+ai-service/test_images/
+ai-service/test_b64.txt
+ai-service/test_payload.json
+
+# Instruction files
+blockchain.md

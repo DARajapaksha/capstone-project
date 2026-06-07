@@ -1,0 +1,25 @@
+{
+  "dependencies": {
+    "cors": "^2.8.6",
+    "firebase-admin": "^13.10.0"
+  },
+  "name": "capstone-project",
+  "version": "1.0.0",
+  "description": "A blockchain-backed, AI-powered identity verification system integrated into a student portal. This capstone project ensures academic integrity for online examinations through real-time liveness detection, document verification, and immutable verification records.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DARajapaksha/capstone-project.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/DARajapaksha/capstone-project/issues"
+  },
+  "homepage": "https://github.com/DARajapaksha/capstone-project#readme"
+}

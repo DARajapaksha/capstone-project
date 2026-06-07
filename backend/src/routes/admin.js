@@ -1,0 +1,44 @@
+const express = require('express');
+const router = express.Router();
+const { adminLogin, getAllVerifications, updateVerificationStatus, updateAdminProfile, getAllStudents, getAllAudits, updateStudentVerificationStatus, deleteStudent } = require('../controllers/adminController');
+const { createVerifier, deleteVerifier, listVerifiers, updateVerifier, updateVerifierRole } = require('../controllers/verifierController');
+// Assuming there might be an authMiddleware in the future, it would be added here like:
+// const authMiddleware = require('../middlewares/authMiddleware');
+
+// Admin Login
+router.post('/login', adminLogin);
+
+// Get all verification requests
+router.get('/verifications', getAllVerifications);
+
+// Update status of a specific verification request
+router.put('/verifications/:id/status', updateVerificationStatus);
+
+// Update admin profile
+router.put('/profile/:id', updateAdminProfile);
+
+// Get all students
+router.get('/students', getAllStudents);
+
+router.put('/students/:id/verify', updateStudentVerificationStatus);
+router.delete('/students/:id', deleteStudent);
+
+// Get all audits
+router.get('/audits', getAllAudits);
+
+// Get all verifiers (reads from Verifiers/ node)
+router.get('/verifiers', listVerifiers);
+
+// Create a new verifier
+router.post('/verifiers', createVerifier);
+
+// Update a verifier
+router.put('/verifiers/:id', updateVerifier);
+
+// Update a verifier's role
+router.put('/verifiers/:id/role', updateVerifierRole);
+
+// Delete a verifier
+router.delete('/verifiers/:id', deleteVerifier);
+
+module.exports = router;
