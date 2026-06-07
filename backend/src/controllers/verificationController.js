@@ -144,6 +144,7 @@ const submitVerificationResult = async (req, res) => {
     if (status === 'success') {
       let docId = requestId;
       let blockchainTxHash = null;
+      let polygonscanUrl   = null;
 
       if (!docId) {
         docId = db.collection('Verification_Requests').doc().id;
@@ -159,7 +160,11 @@ const submitVerificationResult = async (req, res) => {
           decidedAt: Date.now(),
           faceScore: score,
         };
-        blockchainTxHash = await blockchainService.anchorVerification(hashPayload);
+        const bcResult = await blockchainService.anchorVerification(hashPayload);
+        if (bcResult) {
+          blockchainTxHash = bcResult.txHash;
+          polygonscanUrl   = bcResult.polygonscanUrl;
+        }
         console.log(`[Blockchain] AI auto-approval anchored: ${blockchainTxHash}`);
       } catch (bcErr) {
         console.error('[Blockchain] Anchoring failed (non-fatal):', bcErr.message);
@@ -172,6 +177,7 @@ const submitVerificationResult = async (req, res) => {
         examId: examId || null,
         examCode: examCode || 'Unknown',
         blockchainTxHash: blockchainTxHash || null,
+        polygonscanUrl:   polygonscanUrl   || null,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         idImageUrl: admin.firestore.FieldValue.delete(),
         selfieImageUrl: admin.firestore.FieldValue.delete(),
@@ -202,6 +208,7 @@ const submitVerificationResult = async (req, res) => {
         verificationStatus: 'Verified',
         verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
         blockchainTxHash: blockchainTxHash || null,
+        polygonscanUrl:   polygonscanUrl   || null,
       });
 
       await db.collection('Audit_log').add({
@@ -214,7 +221,8 @@ const submitVerificationResult = async (req, res) => {
       return res.status(200).json({
         message: 'Verification synced',
         requestId: docId,
-        blockchainTxHash
+        blockchainTxHash,
+        polygonscanUrl,
       });
 
     } else if (status === 'review') {
@@ -280,11 +288,36 @@ const submitVerificationResult = async (req, res) => {
       return res.status(200).json({ message: 'Sent to manual review', requestId: docId });
 
     } else {
-      // Failed
+      // Failed — AI confidence below minimum threshold
+      let blockchainTxHash = null;
+      let polygonscanUrl   = null;
+
+      // Anchor the rejection event on-chain for tamper-proof audit trail
+      try {
+        const hashPayload = {
+          requestId: requestId || 'no-request-id',
+          studentId: userId,
+          decision: 'Rejected',
+          decidedBy: 'AI_SYSTEM',
+          decidedAt: Date.now(),
+          faceScore: score,
+        };
+        const bcResult = await blockchainService.anchorVerification(hashPayload);
+        if (bcResult) {
+          blockchainTxHash = bcResult.txHash;
+          polygonscanUrl   = bcResult.polygonscanUrl;
+        }
+        console.log(`[Blockchain] AI auto-rejection anchored: ${blockchainTxHash}`);
+      } catch (bcErr) {
+        console.error('[Blockchain] Anchoring failed (non-fatal):', bcErr.message);
+      }
+
       if (requestId) {
         await db.collection('Verification_Requests').doc(requestId).update({
           status: 'Failed',
           faceScore: score,
+          blockchainTxHash: blockchainTxHash || null,
+          polygonscanUrl:   polygonscanUrl   || null,
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           idImageUrl: admin.firestore.FieldValue.delete(),
           selfieImageUrl: admin.firestore.FieldValue.delete(),
@@ -306,9 +339,13 @@ const submitVerificationResult = async (req, res) => {
         userId,
         event: 'Identity Verification Failed',
         timestamp: admin.firestore.FieldValue.serverTimestamp(),
-        details: { reason: status }
+        details: { reason: status, blockchainTxHash }
       });
-      return res.status(200).json({ message: 'Failed verification logged' });
+      return res.status(200).json({
+        message: 'Failed verification logged',
+        blockchainTxHash,
+        polygonscanUrl,
+      });
     }
 
   } catch (error) {

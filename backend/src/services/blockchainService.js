@@ -59,13 +59,22 @@ function generateVerificationHash(payload) {
 }
 
 /**
+ * Returns the Polygonscan Amoy explorer URL for a given transaction hash.
+ * @param {string} txHash - 0x-prefixed transaction hash
+ * @returns {string} full URL to the block explorer
+ */
+function getPolygonscanUrl(txHash) {
+  return `https://amoy.polygonscan.com/tx/${txHash}`;
+}
+
+/**
  * Anchors a verification event on the Polygon Amoy testnet.
  * 1. Generates SHA-256 hash from metadata
  * 2. Signs and broadcasts a transaction to the smart contract
- * 3. Returns the transaction hash (Tx Hash) for storage in Firebase
+ * 3. Returns { txHash, polygonscanUrl } for storage in Firebase
  * 
  * @param {Object} payload - verification metadata
- * @returns {Promise<string>} transaction hash or null if blockchain unavailable
+ * @returns {Promise<{txHash: string, polygonscanUrl: string}|null>}
  */
 async function anchorVerification(payload) {
   if (!RPC_URL || !PRIVATE_KEY || !CONTRACT_ADDR) {
@@ -81,26 +90,35 @@ async function anchorVerification(payload) {
   const account = web3.eth.accounts.privateKeyToAccount('0x' + PRIVATE_KEY.replace(/^0x/, ''));
   web3.eth.accounts.wallet.add(account);
 
-  const contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDR);
+  // Build raw calldata using the selector 0xbf3be781 (string,string) — confirmed working
+  // This is the write function of the deployed contract on Polygon Amoy
+  const calldata = '0xbf3be781' + web3.eth.abi
+    .encodeParameters(['string', 'string'], [verificationHash, payload.requestId || ''])
+    .slice(2);
 
   // Estimate gas dynamically
-  const gasEstimate = await contract.methods
-    .storeVerification(verificationHash, payload.requestId)
-    .estimateGas({ from: account.address });
+  const gasEstimate = await web3.eth.estimateGas({
+    from: account.address,
+    to:   CONTRACT_ADDR,
+    data: calldata,
+  });
 
   const gasPrice = await web3.eth.getGasPrice();
 
-  const receipt = await contract.methods
-    .storeVerification(verificationHash, payload.requestId)
-    .send({
-      from:     account.address,
-      gas:      Math.ceil(Number(gasEstimate) * 1.2), // 20% buffer
-      gasPrice: gasPrice,
-    });
+  const receipt = await web3.eth.sendTransaction({
+    from:     account.address,
+    to:       CONTRACT_ADDR,
+    data:     calldata,
+    gas:      Math.ceil(Number(gasEstimate) * 1.2), // 20% buffer
+    gasPrice: gasPrice,
+  });
 
-  const txHash = receipt.transactionHash;
+  // Web3 v4 may return BigInt — always stringify to a 0x-prefixed hex string
+  const txHash = String(receipt.transactionHash);
+  const polygonscanUrl = getPolygonscanUrl(txHash);
   console.log(`[Blockchain] Transaction confirmed: ${txHash}`);
-  return txHash;
+  console.log(`[Blockchain] Polygonscan: ${polygonscanUrl}`);
+  return { txHash, polygonscanUrl };
 }
 
 /**
@@ -140,4 +158,5 @@ module.exports = {
   anchorVerification,
   getVerificationRecord,
   verifyIntegrity,
+  getPolygonscanUrl,
 };

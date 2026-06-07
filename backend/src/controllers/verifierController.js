@@ -239,6 +239,8 @@ const getVerifierHistory = async (req, res) => {
             })
           : '—',
         notes: item.verifierNotes || '',
+        blockchainTxHash: item.blockchainTxHash || null,
+        polygonscanUrl:   item.polygonscanUrl   || (item.blockchainTxHash ? `https://amoy.polygonscan.com/tx/${item.blockchainTxHash}` : null),
       };
     });
 
@@ -277,6 +279,7 @@ const decideVerification = async (req, res) => {
 
     // ── Step 1: Generate blockchain anchor ────────────────────────────────────
     let blockchainTxHash = null;
+    let polygonscanUrl   = null;
     try {
       const hashPayload = {
         requestId: id,
@@ -286,7 +289,11 @@ const decideVerification = async (req, res) => {
         decidedAt: now,
         faceScore: reqData.faceScore || reqData.score || 0,
       };
-      blockchainTxHash = await blockchainService.anchorVerification(hashPayload);
+      const bcResult = await blockchainService.anchorVerification(hashPayload);
+      if (bcResult) {
+        blockchainTxHash = bcResult.txHash;
+        polygonscanUrl   = bcResult.polygonscanUrl;
+      }
       console.log(`[Blockchain] Tx anchored: ${blockchainTxHash}`);
     } catch (bcErr) {
       console.error('[Blockchain] Anchoring failed (non-fatal):', bcErr.message);
@@ -313,6 +320,7 @@ const decideVerification = async (req, res) => {
       verifierNotes: notes || '',
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       blockchainTxHash: blockchainTxHash || null,
+      polygonscanUrl:   polygonscanUrl   || null,
       idImageUrl: admin.firestore.FieldValue.delete(),
       selfieImageUrl: admin.firestore.FieldValue.delete(),
       idImagePublicId: admin.firestore.FieldValue.delete(),
@@ -354,6 +362,7 @@ const decideVerification = async (req, res) => {
             verificationStatus: 'Verified',
             verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
             blockchainTxHash: blockchainTxHash || null,
+            polygonscanUrl:   polygonscanUrl   || null,
           });
         }
         if (examId) {
@@ -417,6 +426,7 @@ const decideVerification = async (req, res) => {
       id,
       decision,
       blockchainTxHash,
+      polygonscanUrl,
     });
   } catch (error) {
     console.error('Error in decideVerification:', error);

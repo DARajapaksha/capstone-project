@@ -301,13 +301,14 @@ export default function VerificationPage() {
       });
 
       const resultData = await resultRes.json();
-      const hash = resultData.blockchainTxHash || null;
+      const hash          = resultData.blockchainTxHash || null;
+      const polygonscanUrl = resultData.polygonscanUrl || (hash ? `https://amoy.polygonscan.com/tx/${hash}` : null);
 
       const now = new Date();
       const dateString = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       const timeString = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
-      setVerificationResult({ status: outcome, score: faceScore, date: `${dateString}, ${timeString}`, hash });
+      setVerificationResult({ status: outcome, score: faceScore, date: `${dateString}, ${timeString}`, hash, polygonscanUrl });
       setCurrentStep(5);
 
     } catch (err) {
@@ -705,24 +706,47 @@ export default function VerificationPage() {
               </div>
             </div>
 
-            {verificationResult.status === 'success' && verificationResult.hash && (
-              <div className="flex flex-col p-4 bg-slate-50 rounded-xl border border-slate-100">
+            {verificationResult.hash && (
+              <div className={`flex flex-col p-4 rounded-xl border ${
+                verificationResult.status === 'success' ? 'bg-slate-50 border-slate-100' :
+                verificationResult.status === 'review'  ? 'bg-amber-50 border-amber-100' :
+                'bg-red-50 border-red-100'
+              }`}>
                 <div className="flex items-center gap-2 text-slate-500 text-xs font-semibold mb-1.5 uppercase tracking-wider">
-                  <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" /> Immutable Integrity Hash
+                  <ShieldCheck className={`w-3.5 h-3.5 ${
+                    verificationResult.status === 'success' ? 'text-indigo-500' :
+                    verificationResult.status === 'review'  ? 'text-amber-500' :
+                    'text-red-400'
+                  }`} /> Blockchain Audit Record
                 </div>
                 <div className="flex items-center justify-between gap-3 bg-white border border-slate-200 rounded-lg p-2.5 shadow-sm">
                   <span className="font-mono text-xs text-slate-600 truncate selection:bg-indigo-100">
                     {verificationResult.hash}
                   </span>
-                  <button 
-                    onClick={() => {
-                      navigator.clipboard.writeText(verificationResult.hash);
-                    }} 
-                    className="p-1.5 hover:bg-slate-50 rounded text-slate-400 hover:text-slate-600 active:scale-95 transition-transform shrink-0"
-                    title="Copy hash"
-                  >
-                    <Copy className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => navigator.clipboard.writeText(verificationResult.hash)}
+                      className="p-1.5 hover:bg-slate-50 rounded text-slate-400 hover:text-slate-600 active:scale-95 transition-transform"
+                      title="Copy Tx Hash"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                    {verificationResult.polygonscanUrl && (
+                      <a
+                        href={verificationResult.polygonscanUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={`flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-lg transition-colors ${
+                          verificationResult.status === 'success' ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-600' :
+                          verificationResult.status === 'review'  ? 'bg-amber-50 hover:bg-amber-100 text-amber-700' :
+                          'bg-red-50 hover:bg-red-100 text-red-600'
+                        }`}
+                        title="View on Polygonscan"
+                      >
+                        View Proof ↗
+                      </a>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
