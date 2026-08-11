@@ -628,8 +628,8 @@ export default function VerificationPage() {
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <XCircle className="w-16 h-16 text-red-400 mb-4" />
                 <h2 className="text-xl font-bold text-slate-900 mb-2">AI Processing Failed</h2>
-                <p className="text-red-500 text-sm max-w-sm mb-2">{verifyError}</p>
-                <p className="text-slate-400 text-xs max-w-sm mb-8">
+                <p className="text-red-800 text-sm font-semibold max-w-sm mb-2 break-words">{verifyError}</p>
+                <p className="text-slate-500 text-sm font-medium max-w-sm mb-8">
                   Make sure: Backend is on port 5000 and Flask AI service is running on port 5001.
                 </p>
                 <button
