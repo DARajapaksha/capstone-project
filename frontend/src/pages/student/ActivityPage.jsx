@@ -7,13 +7,13 @@ import {
 
 const allActivities = [
   { id: 1, type: 'verification', icon: ShieldCheck, color: 'text-emerald-500', bg: 'bg-emerald-50', title: 'Identity Verified', detail: 'Face match score: 96% — Liveness: Passed', date: 'Mar 5, 2026', time: '11:30 AM', read: true },
-  { id: 2, type: 'enrollment', icon: BookOpen, color: 'text-blue-500', bg: 'bg-blue-50', title: 'Enrolled in MATH-401', detail: 'Advanced Mathematics Final — March 15, 2026', date: 'Mar 4, 2026', time: '3:30 PM', read: true },
+  { id: 2, type: 'enrollment', icon: BookOpen, color: 'text-red-700', bg: 'bg-blue-50', title: 'Enrolled in MATH-401', detail: 'Advanced Mathematics Final — March 15, 2026', date: 'Mar 4, 2026', time: '3:30 PM', read: true },
   { id: 3, type: 'exam', icon: CheckCircle, color: 'text-purple-500', bg: 'bg-purple-50', title: 'Completed PHY-201', detail: 'Physics Lab Exam — Score: 92%', date: 'Feb 28, 2026', time: '11:00 AM', read: true },
   { id: 4, type: 'profile', icon: User, color: 'text-orange-500', bg: 'bg-orange-50', title: 'Profile Updated', detail: 'Email address and NIC number updated', date: 'Feb 20, 2026', time: '2:16 PM', read: true },
-  { id: 5, type: 'enrollment', icon: BookOpen, color: 'text-blue-500', bg: 'bg-blue-50', title: 'Enrolled in CS-302', detail: 'Computer Science Midterm — March 20, 2026', date: 'Feb 18, 2026', time: '10:05 AM', read: true },
+  { id: 5, type: 'enrollment', icon: BookOpen, color: 'text-red-700', bg: 'bg-blue-50', title: 'Enrolled in CS-302', detail: 'Computer Science Midterm — March 20, 2026', date: 'Feb 18, 2026', time: '10:05 AM', read: true },
   { id: 6, type: 'verification', icon: AlertCircle, color: 'text-amber-500', bg: 'bg-amber-50', title: 'Verification Attempt Failed', detail: 'Low lighting detected — please retry with better lighting', date: 'Feb 15, 2026', time: '4:20 PM', read: true },
   { id: 7, type: 'exam', icon: CheckCircle, color: 'text-purple-500', bg: 'bg-purple-50', title: 'Completed CS-201', detail: 'Intro to Computer Science — Score: 88%', date: 'Jan 30, 2026', time: '9:15 AM', read: true },
-  { id: 8, type: 'enrollment', icon: BookOpen, color: 'text-blue-500', bg: 'bg-blue-50', title: 'Enrolled in PHY-201', detail: 'Physics Lab Exam — Feb 28, 2026', date: 'Jan 25, 2026', time: '1:45 PM', read: true },
+  { id: 8, type: 'enrollment', icon: BookOpen, color: 'text-red-700', bg: 'bg-blue-50', title: 'Enrolled in PHY-201', detail: 'Physics Lab Exam — Feb 28, 2026', date: 'Jan 25, 2026', time: '1:45 PM', read: true },
   { id: 9, type: 'profile', icon: User, color: 'text-orange-500', bg: 'bg-orange-50', title: 'Account Created', detail: 'Welcome to the Identity Verification System', date: 'Jan 15, 2026', time: '9:00 AM', read: true },
 ];
 
@@ -66,7 +66,7 @@ const ActivityPage = () => {
               onClick={() => setActiveFilter(f.value)}
               className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
                 activeFilter === f.value
-                  ? 'bg-indigo-600 text-white shadow-sm'
+                  ? 'bg-red-800 text-white shadow-sm'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >

@@ -224,7 +224,7 @@
 
 .course-code-badge {
   background: #f3f0ff;
-  color: #7c3aed;
+  color: #4d0000;
   font-size: 12px;
   font-weight: 700;
   padding: 3px 10px;
@@ -281,7 +281,7 @@
 .enroll-btn {
   width: 100%;
   padding: 11px 0;
-  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  background: linear-gradient(135deg, #8b5cf6, #4d0000);
   color: white;
   border: none;
   border-radius: 9px;
@@ -293,7 +293,7 @@
 }
 
 .enroll-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  background: linear-gradient(135deg, #4d0000, #6d28d9);
   box-shadow: 0 4px 14px rgba(139, 92, 246, 0.4);
 }
 

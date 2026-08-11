@@ -39,9 +39,9 @@ const Sidebar = () => {
             <Link
               key={item.to}
               to={item.to}
-              className={`group flex items-center gap-3 rounded-2xl border-l-4 px-4 py-3 text-sm font-medium transition ${isActive ? 'border-indigo-500 bg-slate-50 text-slate-900' : 'border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+              className={`group flex items-center gap-3 rounded-2xl border-l-4 px-4 py-3 text-sm font-medium transition ${isActive ? 'border-red-800 bg-slate-50 text-slate-900' : 'border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
             >
-              <Icon size={20} className={`transition ${isActive ? 'text-indigo-500' : 'text-slate-400 group-hover:text-slate-600'}`} />
+              <Icon size={20} className={`transition ${isActive ? 'text-red-800' : 'text-slate-400 group-hover:text-slate-600'}`} />
               <span>{item.label}</span>
             </Link>
           );

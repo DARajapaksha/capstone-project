@@ -57,7 +57,7 @@ const NotificationsDropdown = ({ onClose, onUnreadChange }) => {
             id: `login-${lastSignIn.getTime()}`,
             type: 'info',
             icon: CheckCircle2,
-            color: 'text-blue-500',
+            color: 'text-red-700',
             bg: 'bg-blue-50',
             title: 'Login Successful',
             body: 'You have successfully logged into the system.',
@@ -112,7 +112,7 @@ const NotificationsDropdown = ({ onClose, onUnreadChange }) => {
                   id: `${examId}-reminder`,
                   type: 'info',
                   icon: Bell,
-                  color: 'text-blue-500',
+                  color: 'text-red-700',
                   bg: 'bg-blue-50',
                   title: 'Exam Reminder',
                   body: `${examName} starts in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}`,
@@ -214,7 +214,7 @@ const NotificationsDropdown = ({ onClose, onUnreadChange }) => {
 
                 {/* Unread dot */}
                 {!isRead && (
-                  <span className="flex-shrink-0 w-2.5 h-2.5 bg-[#5D5FEF] rounded-full self-center" />
+                  <span className="flex-shrink-0 w-2.5 h-2.5 bg-[#800000] rounded-full self-center" />
                 )}
               </div>
             );

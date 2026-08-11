@@ -73,9 +73,9 @@ const MobileNav = ({ open, onClose }) => {
                 key={item.to}
                 to={item.to}
                 onClick={onClose}
-                className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition ${isActive ? 'border-l-4 border-indigo-500 bg-slate-50 text-slate-900' : 'border border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+                className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition ${isActive ? 'border-l-4 border-red-800 bg-slate-50 text-slate-900' : 'border border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
               >
-                <Icon size={20} className={`transition ${isActive ? 'text-indigo-500' : 'text-slate-400'}`} />
+                <Icon size={20} className={`transition ${isActive ? 'text-red-800' : 'text-slate-400'}`} />
                 <span>{item.label}</span>
               </Link>
             );

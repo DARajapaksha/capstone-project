@@ -1,12 +1,14 @@
 import { auth } from "../../firebase/firebase";
 import { signInWithEmailAndPassword, sendEmailVerification, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
-import { useState } from "react";
-import { Link, useNavigate } from 'react-router-dom';
-import { Shield, Mail, Lock, Cpu, GraduationCap } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import logoImg from '../../assets/logo.jpg';
+import { Mail, Lock, Cpu, GraduationCap, Loader2 } from 'lucide-react';
 import { useProfile } from "../../contexts/ProfileContext";
 
 const Login = () => {
   const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
   const { refreshProfile } = useProfile();
@@ -51,6 +53,7 @@ const Login = () => {
       return;
     }
 
+    setLoading(true);
     try {
       const response = await fetch(`http://${window.location.hostname}:5000/api/auth/login`, {
         method: 'POST',
@@ -81,6 +84,8 @@ const Login = () => {
       console.error('Login Error:', error);
       const message = error?.message || 'An error occurred during login. Please try again.';
       alert(message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -133,7 +138,7 @@ const Login = () => {
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                   <input type="email" placeholder="Enter your email" value={email} onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required />
+                    className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#800000]" required />
                 </div>
               </div>
 
@@ -142,12 +147,13 @@ const Login = () => {
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                   <input type="password" placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required />
+                    className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#800000]" required />
                 </div>
               </div>
 
-              <button type="submit" className="w-full bg-[#5D5FEF] hover:bg-[#4B4DDB] text-white font-bold py-3.5 rounded-xl shadow-lg transition-all active:scale-[0.98]">
-                Sign In
+              <button type="submit" disabled={loading} className="w-full bg-[#800000] hover:bg-[#660000] text-white font-bold py-3.5 rounded-xl shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed">
+                {loading && <Loader2 className="w-5 h-5 animate-spin" />}
+                {loading ? "Signing in..." : "Sign In"}
               </button>
             </form>
           </div>
@@ -160,8 +166,8 @@ const Login = () => {
 const BrandSection = () => (
   <>
     <div className="flex items-center gap-4">
-      <div className="bg-gradient-to-br from-[#5D5FEF] to-[#7c3aed] p-3 rounded-xl shadow-lg shadow-indigo-200">
-        <Shield className="text-white w-8 h-8" />
+      <div className="bg-white rounded-xl shadow-lg shadow-red-200 overflow-hidden w-14 h-14 shrink-0 flex items-center justify-center p-0.5">
+        <img src={logoImg} alt="Logo" className="w-full h-full object-contain" />
       </div>
       <div>
         <h1 className="text-3xl font-bold leading-tight">Identity Verification System</h1>
@@ -171,7 +177,7 @@ const BrandSection = () => (
 
     <div className="space-y-8">
       <div className="flex gap-5">
-        <div className="bg-white p-3 rounded-xl self-start shadow-sm text-blue-500">
+        <div className="bg-white p-3 rounded-xl self-start shadow-sm text-red-700">
           <Cpu size={24} />
         </div>
         <div>
@@ -191,7 +197,7 @@ const BrandSection = () => (
       </div>
 
       <div className="flex gap-5">
-        <div className="bg-white p-3 rounded-xl self-start shadow-sm text-indigo-500">
+        <div className="bg-white p-3 rounded-xl self-start shadow-sm text-red-800">
           <GraduationCap size={24} />
         </div>
         <div>

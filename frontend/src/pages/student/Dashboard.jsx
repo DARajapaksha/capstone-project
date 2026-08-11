@@ -281,7 +281,7 @@ const Dashboard = () => {
                     {exam.isVerified && exam.txHash && (
                       <div className="mt-2 mb-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
                         <p className="text-xs text-gray-500 font-medium mb-1">Blockchain Tx Hash:</p>
-                        <a href={`https://amoy.polygonscan.com/tx/${exam.txHash}`} target="_blank" rel="noopener noreferrer" className="text-xs font-mono text-indigo-600 hover:text-indigo-800 break-all underline flex items-center gap-1">
+                        <a href={`https://amoy.polygonscan.com/tx/${exam.txHash}`} target="_blank" rel="noopener noreferrer" className="text-xs font-mono text-red-800 hover:text-red-900 break-all underline flex items-center gap-1">
                           {exam.txHash}
                         </a>
                       </div>
@@ -416,7 +416,7 @@ const Dashboard = () => {
             {/* Info row */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="bg-gray-50 rounded-xl p-3 flex items-center gap-3">
-                <Mail size={18} className="text-blue-500 shrink-0" />
+                <Mail size={18} className="text-red-700 shrink-0" />
                 <div className="min-w-0">
                   <p className="text-xs text-gray-400 font-medium">Email</p>
                   <p className="text-sm font-semibold text-gray-800 truncate">{profile.email}</p>
@@ -602,16 +602,16 @@ const Dashboard = () => {
                       <img
                         src={editForm.avatar}
                         alt="Profile"
-                        className="w-16 h-16 rounded-full object-cover shadow-md border-2 border-white ring-2 ring-indigo-100"
+                        className="w-16 h-16 rounded-full object-cover shadow-md border-2 border-white ring-2 ring-red-100"
                       />
                     ) : profile?.avatar ? (
                       <img
                         src={profile.avatar}
                         alt="Profile"
-                        className="w-16 h-16 rounded-full object-cover shadow-md border-2 border-white ring-2 ring-indigo-100"
+                        className="w-16 h-16 rounded-full object-cover shadow-md border-2 border-white ring-2 ring-red-100"
                       />
                     ) : (
-                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#5D5FEF] to-[#7c3aed] flex items-center justify-center text-white text-xl font-black shadow-md">
+                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#800000] to-[#4d0000] flex items-center justify-center text-white text-xl font-black shadow-md">
                         {initials}
                       </div>
                     )}
@@ -635,7 +635,7 @@ const Dashboard = () => {
                     type="text"
                     value={editForm.name}
                     onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                    className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 px-4 outline-none focus:ring-2 focus:ring-[#5D5FEF] text-sm font-semibold text-gray-800"
+                    className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 px-4 outline-none focus:ring-2 focus:ring-[#800000] text-sm font-semibold text-gray-800"
                     placeholder="Full Name"
                     required
                   />
@@ -648,7 +648,7 @@ const Dashboard = () => {
                     type="email"
                     value={editForm.email}
                     onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                    className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 px-4 outline-none focus:ring-2 focus:ring-[#5D5FEF] text-sm font-semibold text-gray-800"
+                    className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 px-4 outline-none focus:ring-2 focus:ring-[#800000] text-sm font-semibold text-gray-800"
                     placeholder="Email Address"
                     required
                   />
@@ -661,7 +661,7 @@ const Dashboard = () => {
                     type="text"
                     value={editForm.nic}
                     onChange={(e) => setEditForm({ ...editForm, nic: e.target.value })}
-                    className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 px-4 outline-none focus:ring-2 focus:ring-[#5D5FEF] text-sm font-semibold text-gray-800"
+                    className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 px-4 outline-none focus:ring-2 focus:ring-[#800000] text-sm font-semibold text-gray-800"
                     placeholder="NIC Number"
                     required
                   />
@@ -691,7 +691,7 @@ const Dashboard = () => {
                   <button
                     type="submit"
                     disabled={savingProfile}
-                    className="bg-[#5D5FEF] hover:bg-[#4B4DDB] text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md shadow-indigo-100 transition-colors disabled:opacity-50 cursor-pointer"
+                    className="bg-[#800000] hover:bg-[#660000] text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md shadow-red-100 transition-colors disabled:opacity-50 cursor-pointer"
                   >
                     {savingProfile ? 'Saving...' : 'Save Changes'}
                   </button>

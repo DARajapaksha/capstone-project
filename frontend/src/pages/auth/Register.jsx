@@ -1,9 +1,10 @@
-import { auth } from "../../firebase/firebase";
-import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { auth, db } from "../../firebase/firebase";
+import { createUserWithEmailAndPassword, sendEmailVerification, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from 'react-router-dom';
-import { Shield, Mail, Lock, KeyRound, Cpu, GraduationCap, User, CreditCard } from 'lucide-react';
+import { Mail, Lock, KeyRound, Cpu, GraduationCap, User, CreditCard } from 'lucide-react';
 import { useProfile } from "../../contexts/ProfileContext";
+import logoImg from '../../assets/logo.jpg';
 
 const Register = () => {
   const [email, setEmail] = useState("");
@@ -204,7 +205,7 @@ const Register = () => {
                         placeholder="123456"
                         value={otp}
                         onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                        className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF] tracking-[0.2em] font-mono text-center text-lg font-bold"
+                        className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#800000] tracking-[0.2em] font-mono text-center text-lg font-bold"
                         required
                         autoComplete="off"
                       />
@@ -214,7 +215,7 @@ const Register = () => {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full bg-[#5D5FEF] hover:bg-[#4B4DDB] text-white font-bold py-3.5 rounded-xl shadow-lg transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="w-full bg-[#800000] hover:bg-[#660000] text-white font-bold py-3.5 rounded-xl shadow-lg transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {loading ? "Verifying..." : "Verify & Create Account"}
                   </button>
@@ -225,7 +226,7 @@ const Register = () => {
                       type="button"
                       disabled={countdown > 0 || loading}
                       onClick={handleRegister}
-                      className="text-[#5D5FEF] font-bold text-sm disabled:text-gray-400 disabled:cursor-not-allowed hover:underline"
+                      className="text-[#800000] font-bold text-sm disabled:text-gray-400 disabled:cursor-not-allowed hover:underline"
                     >
                       {countdown > 0 ? `Resend Code in ${countdown}s` : "Resend Code"}
                     </button>
@@ -257,7 +258,7 @@ const Register = () => {
                       <div className="relative">
                         <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                         <input type="text" placeholder="John Doe" value={name} onChange={(e) => setName(e.target.value)}
-                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required />
+                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#800000]" required />
                       </div>
                     </div>
 
@@ -266,7 +267,7 @@ const Register = () => {
                       <div className="relative">
                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                         <input type="email" placeholder="example@gmail.com" value={email} onChange={(e) => setEmail(e.target.value)}
-                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required />
+                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#800000]" required />
                       </div>
                     </div>
 
@@ -275,7 +276,7 @@ const Register = () => {
                       <div className="relative">
                         <GraduationCap className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                         <input type="text" placeholder="STU-2026-001" value={studentId} onChange={(e) => setStudentId(e.target.value)}
-                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required />
+                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#800000]" required />
                       </div>
                     </div>
 
@@ -284,7 +285,7 @@ const Register = () => {
                       <div className="relative">
                         <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                         <input type="text" placeholder="123456789V" value={nic} onChange={(e) => setNic(e.target.value)}
-                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required />
+                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#800000]" required />
                       </div>
                     </div>
 
@@ -293,7 +294,7 @@ const Register = () => {
                       <div className="relative">
                         <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                         <input type="password" placeholder="Enter password" value={password} onChange={(e) => setPassword(e.target.value)}
-                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required />
+                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#800000]" required />
                       </div>
                     </div>
 
@@ -302,12 +303,12 @@ const Register = () => {
                       <div className="relative">
                         <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                         <input type="password" placeholder="Confirm password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
-                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#5D5FEF]" required />
+                          className="w-full bg-[#F3F6FF] border-none rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-[#800000]" required />
                       </div>
                     </div>
                   </div>
 
-                  <button type="submit" disabled={loading} className="w-full bg-[#5D5FEF] hover:bg-[#4B4DDB] text-white font-bold py-3.5 rounded-xl shadow-lg transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed mt-4">
+                  <button type="submit" disabled={loading} className="w-full bg-[#800000] hover:bg-[#660000] text-white font-bold py-3.5 rounded-xl shadow-lg transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed mt-4">
                     {loading ? "Sending Code..." : "Create Account"}
                   </button>
                 </form>
@@ -347,8 +348,8 @@ const Register = () => {
 const BrandSection = () => (
   <>
     <div className="flex items-center gap-4">
-      <div className="bg-gradient-to-br from-[#5D5FEF] to-[#7c3aed] p-3 rounded-xl shadow-lg shadow-indigo-200">
-        <Shield className="text-white w-8 h-8" />
+      <div className="bg-white rounded-xl shadow-lg shadow-red-200 overflow-hidden w-14 h-14 shrink-0 flex items-center justify-center p-0.5">
+        <img src={logoImg} alt="Logo" className="w-full h-full object-contain" />
       </div>
       <div>
         <h1 className="text-3xl font-bold leading-tight">Identity Verification System</h1>
@@ -359,7 +360,7 @@ const BrandSection = () => (
     <div className="space-y-8">
       {/* 1. AI Feature */}
       <div className="flex gap-5">
-        <div className="bg-white p-3 rounded-xl self-start shadow-sm text-blue-500">
+        <div className="bg-white p-3 rounded-xl self-start shadow-sm text-red-700">
           <Cpu size={24} />
         </div>
         <div>
@@ -381,7 +382,7 @@ const BrandSection = () => (
 
       {/* 3. University Feature */}
       <div className="flex gap-5">
-        <div className="bg-white p-3 rounded-xl self-start shadow-sm text-indigo-500">
+        <div className="bg-white p-3 rounded-xl self-start shadow-sm text-red-800">
           <GraduationCap size={24} />
         </div>
         <div>

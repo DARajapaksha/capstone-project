@@ -18,7 +18,7 @@ const VerificationTab = () => {
       {/* SECTION 1: Per-Exam Identity Verification */}
       <div className="bg-white rounded-[32px] p-8 md:p-10 border border-white shadow-sm">
         <div className="flex items-center gap-3 mb-2">
-          <Shield className="w-6 h-6 text-[#5D5FEF]" />
+          <Shield className="w-6 h-6 text-[#800000]" />
           <h3 className="text-2xl font-black text-gray-800 tracking-tight">Per-Exam Identity Verification</h3>
         </div>
         <p className="text-gray-400 font-medium mb-8">
@@ -26,11 +26,11 @@ const VerificationTab = () => {
         </p>
 
         {/* Enhanced Security Alert */}
-        <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-5 flex items-start gap-4 mb-8">
-          <ShieldCheck className="w-6 h-6 text-[#5D5FEF] mt-0.5 shrink-0" />
+        <div className="bg-red-50/50 border border-red-100 rounded-2xl p-5 flex items-start gap-4 mb-8">
+          <ShieldCheck className="w-6 h-6 text-[#800000] mt-0.5 shrink-0" />
           <div>
-            <h4 className="text-sm font-black text-[#5D5FEF] uppercase tracking-wide">Enhanced Security</h4>
-            <p className="text-sm text-indigo-900/70 font-medium mt-1">
+            <h4 className="text-sm font-black text-[#800000] uppercase tracking-wide">Enhanced Security</h4>
+            <p className="text-sm text-red-950/70 font-medium mt-1">
               Each exam requires a fresh identity verification to ensure the highest level of security and prevent impersonation.
             </p>
           </div>
@@ -39,7 +39,7 @@ const VerificationTab = () => {
         {/* 3 Steps Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-[#F3F6FF] rounded-[24px] p-6 flex flex-col items-center text-center">
-            <div className="bg-blue-100 p-4 rounded-2xl mb-4 text-blue-500">
+            <div className="bg-blue-100 p-4 rounded-2xl mb-4 text-red-700">
               <FileText size={24} />
             </div>
             <h4 className="font-black text-gray-800 text-lg">Upload ID</h4>
@@ -87,10 +87,10 @@ const VerificationTab = () => {
           <div className="bg-[#F3F6FF] p-6 rounded-[24px]">
             <div className="flex justify-between items-end mb-4">
               <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Face Match Score</span>
-              <span className="text-2xl font-black text-[#5D5FEF] leading-none">96%</span>
+              <span className="text-2xl font-black text-[#800000] leading-none">96%</span>
             </div>
             <div className="w-full bg-white rounded-full h-2.5 shadow-inner">
-              <div className="bg-[#5D5FEF] h-2.5 rounded-full" style={{ width: '96%' }}></div>
+              <div className="bg-[#800000] h-2.5 rounded-full" style={{ width: '96%' }}></div>
             </div>
           </div>
 
@@ -117,7 +117,7 @@ const VerificationTab = () => {
         <div className="mb-8">
           <div className="flex justify-between items-center mb-3">
             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Blockchain Transaction Hash</span>
-            <button className="flex items-center gap-1.5 text-gray-400 hover:text-[#5D5FEF] transition-colors text-xs font-bold uppercase">
+            <button className="flex items-center gap-1.5 text-gray-400 hover:text-[#800000] transition-colors text-xs font-bold uppercase">
               <Copy size={14} /> Copy
             </button>
           </div>
@@ -198,7 +198,7 @@ const VerificationTab = () => {
               <div>
                 <h4 className="text-lg font-black text-gray-800 leading-tight">Advanced Mathematics Final</h4>
                 <div className="text-[10px] font-black text-amber-500/70 uppercase tracking-widest mt-1 mb-2">MATH-401</div>
-                <button className="text-xs font-black text-[#5D5FEF] uppercase tracking-wide flex items-center gap-1 hover:underline">
+                <button className="text-xs font-black text-[#800000] uppercase tracking-wide flex items-center gap-1 hover:underline">
                   Verify now <ArrowRight size={14} />
                 </button>
               </div>

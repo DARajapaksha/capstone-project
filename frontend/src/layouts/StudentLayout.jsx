@@ -6,7 +6,8 @@ import MobileNav from '../components/student/MobileNav';
 import NotificationsDropdown from '../components/student/NotificationsDropdown';
 import SettingsDropdown from '../components/student/SettingsDropdown';
 import { useProfile } from '../contexts/ProfileContext';
-import { Bell, LogOut, Menu, ShieldCheck, Settings } from 'lucide-react';
+import { Bell, LogOut, Menu, Settings } from 'lucide-react';
+import logoImg from '../assets/logo.jpg';
 
 
 
@@ -44,8 +45,8 @@ const StudentLayout = () => {
                 <Menu className="h-5 w-5" />
               </button>
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-sm shrink-0">
-                  <ShieldCheck size={24} />
+                <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-2xl bg-white shadow-sm shrink-0 overflow-hidden">
+                  <img src={logoImg} alt="Logo" className="w-full h-full object-cover" />
                 </div>
                 <div>
                   <h1 className="text-lg sm:text-2xl font-semibold text-slate-900 leading-tight">Student Portal</h1>
@@ -75,7 +76,7 @@ const StudentLayout = () => {
                   onLogout={handleLogout}
                 />
               )}
-              <button onClick={handleLogout} className="flex items-center gap-2 px-3 sm:px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 shrink-0">
+              <button onClick={handleLogout} className="flex items-center gap-2 px-3 sm:px-4 py-2 text-sm font-medium text-white bg-red-800 rounded-xl hover:bg-red-900 shrink-0">
                 <LogOut size={18} />
                 <span className="hidden sm:inline">Logout</span>
               </button>
