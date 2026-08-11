@@ -8,6 +8,7 @@ import SettingsDropdown from '../components/student/SettingsDropdown';
 import { useProfile } from '../contexts/ProfileContext';
 import { Bell, LogOut, Menu, Settings } from 'lucide-react';
 import logoImg from '../assets/logo.jpg';
+import EditProfileModal from '../components/student/EditProfileModal';
 
 
 
@@ -88,6 +89,7 @@ const StudentLayout = () => {
         </div>
       </div>
       <MobileNav open={menuOpen} onClose={() => setMenuOpen(false)} />
+      <EditProfileModal />
     </div>
   );
 };
