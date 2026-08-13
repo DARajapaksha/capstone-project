@@ -132,17 +132,20 @@ const deleteExam = async (req, res) => {
       return res.status(404).json({ error: 'Exam not found.' });
     }
 
-    // ── Cascade delete student enrollments ───────────────────────────────────
-    // Find all students who have this exam in Student_Exams and Enrollments
-    const studentExamsQuery = await db.collectionGroup('exams').where('examId', '==', id).get();
+    // ── Cascade delete student enrollments (with try-catch for missing index) ──
+    try {
+      const studentExamsQuery = await db.collectionGroup('exams').where('examId', '==', id).get();
 
-    if (!studentExamsQuery.empty) {
-      const batch = db.batch();
-      studentExamsQuery.docs.forEach(doc => {
-        batch.delete(doc.ref);
-      });
-      await batch.commit();
-      console.log(`[deleteExam] Removed ${studentExamsQuery.size} student enrollment(s) for exam ${id}`);
+      if (!studentExamsQuery.empty) {
+        const batch = db.batch();
+        studentExamsQuery.docs.forEach(doc => {
+          batch.delete(doc.ref);
+        });
+        await batch.commit();
+        console.log(`[deleteExam] Removed ${studentExamsQuery.size} student enrollment(s) for exam ${id}`);
+      }
+    } catch (cascadeError) {
+      console.warn(`[deleteExam] Failed to cascade delete enrollments (possibly missing collectionGroup index). Proceeding to delete exam. Error:`, cascadeError.message);
     }
 
     // ── Delete the exam itself ───────────────────────────────────────────────

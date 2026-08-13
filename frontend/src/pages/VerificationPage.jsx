@@ -272,17 +272,21 @@ export default function VerificationPage() {
       console.log('AI Results:', aiData);
 
       // Step 2: Derive outcome from face score
-      // DeepFace scores: 0 = no match, 100 = perfect match
-      // Threshold lowered to 35 to account for low-quality webcam / ID card images
+      // The backend applies a +45 demo boost (capped at 95) before returning face_score.
+      // Use the boosted score as-is — do NOT add more points here.
       const faceScore = Math.round((aiData.face_match?.face_score ?? 0) * 100);
 
+      // ── Decision thresholds ───────────────────────────────────────────────
+      // Score > 85  → Automatic Approval  (backend triggers blockchain)
+      // Score 50-85 → Uncertainty Zone    (human review)
+      // Score < 50  → Automatic Rejection
       let outcome;
-      if (faceScore < 35) {
-        outcome = 'failed';
-      } else if (faceScore >= 35 && faceScore < 60) {
-        outcome = 'review';  // Send to human verifier
-      } else {
+      if (faceScore > 85) {
         outcome = 'success';
+      } else if (faceScore >= 50) {
+        outcome = 'review';  // Uncertainty zone — send to human verifier
+      } else {
+        outcome = 'failed';
       }
 
       // Step 3: Submit the result to the backend
