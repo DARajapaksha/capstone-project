@@ -47,10 +47,14 @@ const adminLogin = async (req, res) => {
       JWT_SECRET,
       { expiresIn: '12h' }
     );
+    
+    // Generate Firebase Custom Token for frontend onSnapshot
+    const firebaseToken = await admin.auth().createCustomToken(adminKey, { role: adminUser.role });
 
     return res.status(200).json({
       message: 'Login successful',
       token,
+      firebaseToken,
       admin: {
         id: adminUser.id,
         name: adminUser.name,
