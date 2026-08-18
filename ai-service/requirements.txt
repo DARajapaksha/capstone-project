@@ -5,3 +5,4 @@ mediapipe
 deepface
 numpy
 python-dotenv
+scikit-image

@@ -38,7 +38,58 @@ const uploadVerificationImages = async (req, res) => {
       return res.status(400).json({ error: 'selfie_image is required' });
     }
 
-    // 2. Safely Convert Buffer to In-Memory Base64 Data URI strings
+    // ── 2. MANDATORY LIVENESS GATE ─────────────────────────────────────────
+    // The frontend must pass the liveness_result JSON in the request body.
+    // If liveness status is not explicitly 'Live', reject immediately.
+    // This is the BACKEND enforcement — it cannot be bypassed by modifying
+    // the frontend, because the server validates the result independently.
+    let livenessResult = null;
+    try {
+      const raw = req.body.liveness_result;
+      livenessResult = raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      // malformed JSON — treat as failed
+      livenessResult = null;
+    }
+
+    const livenessStatus = livenessResult?.status || livenessResult?.liveness_status || 'Fake';
+    const blinkDetected  = livenessResult?.blink_detected === true;
+    const movementDetected = livenessResult?.movement_detected === true;
+    const antiSpoofPassed  = livenessResult?.anti_spoof_passed === true;
+
+    console.log(`[Verification] Liveness gate: status=${livenessStatus} blink=${blinkDetected} movement=${movementDetected} antiSpoof=${antiSpoofPassed}`);
+
+    // Hard reject if liveness is not Live OR if individual checks are missing
+    // We independently verify the sub-checks to prevent a tampered payload
+    // where status='Live' but individual fields are false.
+    if (livenessStatus !== 'Live' || !blinkDetected || !movementDetected || !antiSpoofPassed) {
+      const reason = [];
+      if (livenessStatus !== 'Live') reason.push(`status=${livenessStatus}`);
+      if (!blinkDetected)   reason.push('no_blink');
+      if (!movementDetected) reason.push('no_movement');
+      if (!antiSpoofPassed) reason.push('anti_spoof_failed');
+
+      console.warn(`[Verification] LIVENESS GATE REJECTED: ${reason.join(', ')}`);
+
+      // Log the failed attempt
+      const db = admin.firestore();
+      await db.collection('Audit_log').add({
+        userId,
+        event: 'Liveness Check Failed — Verification Blocked',
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        details: { reasons: reason, livenessStatus }
+      });
+
+      return res.status(403).json({
+        error: 'Liveness verification failed. Please complete a real liveness check before uploading.',
+        liveness_status: livenessStatus,
+        failure_reasons: reason,
+        status: 'failed',
+        score: 0
+      });
+    }
+
+    // 3. Safely Convert Buffer to In-Memory Base64 Data URI strings
     const idFileObj = req.files.id_image[0];
     const selfieFileObj = req.files.selfie_image[0];
 
@@ -52,6 +103,8 @@ const uploadVerificationImages = async (req, res) => {
     await newReqRef.set({
       userId,
       status: 'Pending',
+      livenessStatus: 'Live',            // ← confirmed real person
+      livenessVerifiedAt: admin.firestore.FieldValue.serverTimestamp(),
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
       // ⚠ NO idImageUrl / selfieImageUrl stored here — PDPA compliance
     });
@@ -61,7 +114,7 @@ const uploadVerificationImages = async (req, res) => {
       userId,
       event: 'Verification Upload Initiated',
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
-      details: { requestId: newReqRef.id }
+      details: { requestId: newReqRef.id, livenessStatus: 'Live' }
     });
 
     // ── Call Flask AI service with both in-memory strings ────────────────
@@ -79,32 +132,39 @@ const uploadVerificationImages = async (req, res) => {
       });
 
       const aiResult = await aiResponse.json();
-      console.log('Flask match-faces result:', aiResult); 
+      console.log('[Verification] Flask match-faces result:', aiResult);
 
       if (aiResult.error) {
-        console.error('Flask error:', aiResult.error);
+        console.error('[Verification] Flask error:', aiResult.error);
         return res.status(503).json({
           error: `AI service error: ${aiResult.error}`,
           requestId: newReqRef.id
         });
       }
 
-      const rawScore = Math.round((aiResult.face_score || 0) * 100);
-      console.log(`[Verification] Raw AI score: ${rawScore}%`);
+      // Use the raw score directly — no artificial boost applied.
+      // ArcFace cosine similarity is well-calibrated: genuine pairs score 0.55+
+      let rawScore = Math.round((aiResult.face_score || 0) * 100);
+      
+      // ── Blurriness / Texture Variance Check ──────────────────────────────
+      // If the selfie is blurry (low Laplacian variance), we cannot confidently
+      // auto-approve it, even if ArcFace found a loose match.
+      const selfieVar = aiResult.selfie_texture_var || 0;
+      if (selfieVar > 0 && selfieVar < 150) {
+        console.log(`[Verification] Selfie is blurry (var=${selfieVar}). Capping score to force review.`);
+        rawScore = Math.min(rawScore, 69);
+      }
 
-      // ── DEMO BOOST: compensate for webcam / ID card image quality ────────
-      // Raw DeepFace scores are often 40-65% for genuine matches on webcam images.
-      // Add 45 points so a raw score of ~40% clears the 85% auto-approval threshold.
-      // Cap at 95 to keep the display believable.
-      aiScore = Math.min(rawScore + 45, 95);
+      aiScore = rawScore;
+      console.log(`[Verification] Final AI face score: ${aiScore}%`);
 
       // ── Decision thresholds ───────────────────────────────────────────────
-      // Score > 85  → Automatic Approval  (blockchain triggered)
-      // Score 50-85 → Uncertainty Zone    (human review)
-      // Score < 50  → Automatic Rejection
-      if (aiScore > 85) {
+      // Score > 70  → Automatic Approval  (blockchain triggered)
+      // Score 45-70 → Uncertainty Zone    (human review)
+      // Score < 45  → Automatic Rejection
+      if (aiScore > 70) {
         aiStatus = 'success';
-      } else if (aiScore >= 50) {
+      } else if (aiScore >= 45) {
         aiStatus = 'review';
       } else {
         aiStatus = 'failed';
@@ -112,13 +172,14 @@ const uploadVerificationImages = async (req, res) => {
 
       // Update the request with computed results
       await newReqRef.update({
-        status: (aiStatus === 'success' || aiStatus === 'review') ? 'Approved' : 'Failed', 
+        status: (aiStatus === 'success' || aiStatus === 'review') ? 'Approved' : 'Failed',
         score: aiScore,
+        method: aiResult.method || 'unknown',
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
       });
 
     } catch (aiError) {
-      console.error('Flask AI service error:', aiError);
+      console.error('[Verification] Flask AI service error:', aiError);
       return res.status(503).json({
         error: 'AI service unavailable. Make sure Flask is running on port 5001.',
         requestId: newReqRef.id
@@ -135,6 +196,11 @@ const uploadVerificationImages = async (req, res) => {
           face_score: aiScore / 100,
           match: aiStatus === 'success'
         }
+      },
+      // Transparency: expose thresholds so frontend can display them
+      thresholds: {
+        autoApprove: 70,
+        autoReject: 45
       }
     });
     

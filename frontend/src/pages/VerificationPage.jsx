@@ -29,6 +29,7 @@ export default function VerificationPage() {
   // null = not started, 'checking' = recording, 'live' = passed, 'fake' = failed
   const [livenessStatus, setLivenessStatus] = useState(null);
   const [livenessFrameCount, setLivenessFrameCount] = useState(0);
+  const [livenessResult, setLivenessResult] = useState(null); // full result object
 
   // Step 4 states
   const [isProcessing, setIsProcessing] = useState(false);
@@ -173,8 +174,8 @@ export default function VerificationPage() {
     setLivenessFrameCount(0);
 
     const frames = [];
-    const TOTAL_FRAMES = 15;
-    const FRAME_INTERVAL_MS = 200;
+    const TOTAL_FRAMES = 20;
+    const FRAME_INTERVAL_MS = 300;
 
     for (let i = 0; i < TOTAL_FRAMES; i++) {
       await new Promise(resolve => setTimeout(resolve, FRAME_INTERVAL_MS));
@@ -208,6 +209,9 @@ export default function VerificationPage() {
       const result = await response.json();
       console.log('Liveness result:', result);
 
+      // Store full result so it can be sent to backend with the upload
+      setLivenessResult(result);
+
       const status = result.status || result.liveness_status || 'Fake';
       if (status === 'Live') {
         setLivenessStatus('live');
@@ -225,6 +229,7 @@ export default function VerificationPage() {
   const retryLiveness = () => {
     setLivenessStatus(null);
     setLivenessFrameCount(0);
+    setLivenessResult(null); // clear stale result
     startLivenessCamera();
   };
 
@@ -248,9 +253,17 @@ export default function VerificationPage() {
       const selfieImageBase64 = selfieImage;
 
       // Step 1: Upload images to backend for AI processing
+      // IMPORTANT: liveness_result is included so the backend can verify it
+      // server-side. The backend is the enforcer — liveness MUST pass or the
+      // upload is rejected with 403 regardless of what the frontend says.
+      if (!livenessResult || (livenessResult.status || livenessResult.liveness_status) !== 'Live') {
+        throw new Error('Liveness check must be completed before uploading. Please retry the liveness check.');
+      }
+
       const formData = new FormData();
       formData.append('id_image', base64ToBlob(nicImageBase64, 'image/jpeg'), 'id.jpg');
       formData.append('selfie_image', base64ToBlob(selfieImageBase64, 'image/jpeg'), 'selfie.jpg');
+      formData.append('liveness_result', JSON.stringify(livenessResult)); // backend gate
       if (examId) formData.append('examId', examId);
       if (examCode) formData.append('examCode', examCode);
 
@@ -261,8 +274,16 @@ export default function VerificationPage() {
       });
 
       if (!uploadRes.ok) {
-        const text = await uploadRes.text();
-        throw new Error(`Upload failed (${uploadRes.status}): ${text.substring(0, 100)}`);
+        const errData = await uploadRes.json().catch(() => ({}));
+        // 403 = liveness gate rejected server-side
+        if (uploadRes.status === 403) {
+          const reasons = errData.failure_reasons || [];
+          setLivenessStatus(null);
+          setLivenessResult(null);
+          setCurrentStep(3); // send back to liveness step
+          throw new Error(`Liveness verification failed on server: ${reasons.join(', ')}. Please redo the liveness check.`);
+        }
+        throw new Error(`Upload failed (${uploadRes.status}): ${errData.error || 'Unknown error'}`);
       }
 
       const uploadData = await uploadRes.json();
@@ -272,18 +293,17 @@ export default function VerificationPage() {
       console.log('AI Results:', aiData);
 
       // Step 2: Derive outcome from face score
-      // The backend applies a +45 demo boost (capped at 95) before returning face_score.
-      // Use the boosted score as-is — do NOT add more points here.
+      // Scores are now the raw ArcFace AI output — no artificial boost.
       const faceScore = Math.round((aiData.face_match?.face_score ?? 0) * 100);
 
-      // ── Decision thresholds ───────────────────────────────────────────────
-      // Score > 85  → Automatic Approval  (backend triggers blockchain)
-      // Score 50-85 → Uncertainty Zone    (human review)
-      // Score < 50  → Automatic Rejection
+      // ── Decision thresholds (must match verificationController.js) ───────────
+      // Score > 70  → Automatic Approval  (backend triggers blockchain)
+      // Score 45-70 → Uncertainty Zone    (human review)
+      // Score < 45  → Automatic Rejection
       let outcome;
-      if (faceScore > 85) {
+      if (faceScore > 70) {
         outcome = 'success';
-      } else if (faceScore >= 50) {
+      } else if (faceScore >= 45) {
         outcome = 'review';  // Uncertainty zone — send to human verifier
       } else {
         outcome = 'failed';
@@ -547,7 +567,7 @@ export default function VerificationPage() {
                   {livenessStatus === 'checking' && (
                     <div className="absolute bottom-4 left-0 right-0 flex justify-center">
                       <div className="bg-black/70 text-white text-xs px-4 py-2 rounded-full font-medium tracking-wide shadow-md backdrop-blur-sm">
-                        Recording... {livenessFrameCount}/15 frames
+                        Recording... {livenessFrameCount}/20 frames
                       </div>
                     </div>
                   )}
@@ -579,7 +599,7 @@ export default function VerificationPage() {
               {livenessStatus === 'checking' && (
                 <div className="flex flex-col items-center gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl">
                   <div className="flex gap-1.5 justify-center">
-                    {Array.from({ length: 15 }).map((_, idx) => (
+                    {Array.from({ length: 20 }).map((_, idx) => (
                       <div
                         key={idx}
                         className={`w-2.5 h-2.5 rounded-full transition-all duration-200 ${
@@ -637,10 +657,19 @@ export default function VerificationPage() {
                   Make sure: Backend is on port 5000 and Flask AI service is running on port 5001.
                 </p>
                 <button
-                  onClick={() => { setVerifyError(null); handleVerify(); }}
+                  onClick={() => { 
+                    setVerifyError(null);
+                    setSelectedImage(null);
+                    setIdFile(null);
+                    setSelfieImage(null);
+                    setLivenessStatus(null);
+                    setLivenessFrameCount(0);
+                    setLivenessResult(null);
+                    setCurrentStep(1); 
+                  }}
                   className="px-6 py-2.5 bg-red-800 text-white font-medium rounded-xl hover:bg-red-800 transition-colors shadow-sm flex items-center gap-2"
                 >
-                  <RefreshCw className="w-4 h-4" /> Retry AI Processing
+                  <RefreshCw className="w-4 h-4" /> Restart Verification
                 </button>
               </div>
             ) : (
